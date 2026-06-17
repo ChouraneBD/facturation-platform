@@ -1,5 +1,5 @@
 import { jsPDF } from 'jspdf';
-import 'jspdf-autotable';
+import autoTable from 'jspdf-autotable';
 import QRCode from 'qrcode';
 
 const COMPANY = {
@@ -9,6 +9,11 @@ const COMPANY = {
   email: 'contact@techpro-services.ma',
   phone: '+212 5 22 00 00 00'
 };
+
+function formatPdfDate(value) {
+  if (!value) return '—';
+  return new Date(value).toLocaleDateString('fr-FR');
+}
 
 export const generatePdfBlob = async (facture) => {
   const doc = new jsPDF({
@@ -40,8 +45,8 @@ export const generatePdfBlob = async (facture) => {
 
   doc.setFontSize(10);
   doc.setTextColor(71, 85, 105);
-  doc.text(`Date : ${facture.date_creation || facture.created_at || ''}`, 15, 47);
-  doc.text(`Statut : ${facture.statut}`, 15, 53);
+  doc.text(`Date : ${formatPdfDate(facture.date_creation || facture.created_at)}`, 15, 47);
+  doc.text(`Statut : ${facture.statut || '—'}`, 15, 53);
 
   const client = facture.Client || {};
   doc.setFontSize(11);
@@ -56,24 +61,24 @@ export const generatePdfBlob = async (facture) => {
 
   const tableData = (facture.lignes_facture || []).map((line, index) => [
     index + 1,
-    line.designation_snapshot,
-    line.quantite,
-    Number(line.prix_unitaire_applique).toFixed(2),
+    line.designation_snapshot || '—',
+    line.quantite ?? 0,
+    Number(line.prix_unitaire_applique || 0).toFixed(2),
     `${Number(line.remise_pct || 0)}%`,
     `${Number(line.tva_pct || 0)}%`,
     `${Number(line.total_ligne || 0).toFixed(2)} EUR`
   ]);
 
-  doc.autoTable({
+  autoTable(doc, {
     startY: 92,
     head: [['#', 'Désignation', 'Qté', 'PU', 'Remise', 'TVA', 'Total']],
-    body: tableData,
+    body: tableData.length ? tableData : [['—', 'Aucune ligne', '—', '—', '—', '—', '—']],
     theme: 'grid',
     headStyles: { fillColor: [79, 70, 229] },
     styles: { fontSize: 9 }
   });
 
-  const finalY = doc.lastAutoTable.finalY || 92;
+  const finalY = doc.lastAutoTable?.finalY || 120;
 
   doc.setFontSize(12);
   doc.setTextColor(30, 41, 59);

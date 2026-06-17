@@ -87,7 +87,11 @@ export function Checkout() {
         notify('warning', "Facture créée, mais erreur lors du téléchargement du PDF.");
       }
 
-      notify('success', 'Facture générée ! Notification email envoyée au client.');
+      const emailMessage = response.emailSent === false
+        ? 'Facture générée, mais la notification email n\'a pas pu être envoyée.'
+        : response.message || 'Facture générée ! Notification email envoyée.';
+
+      notify(response.emailSent === false ? 'warning' : 'success', emailMessage);
       clearCart();
       setSuccess(true);
       

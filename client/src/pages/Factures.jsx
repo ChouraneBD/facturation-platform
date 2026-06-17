@@ -146,7 +146,7 @@ export function Factures() {
         body: payload
       });
 
-      notify('success', result.message || 'Facture créée. Notifications email envoyées.');
+      notify('success', result.message || 'Facture créée.');
       resetForm();
       loadData();
     } catch (error) {

@@ -6,10 +6,13 @@ import {
   Clock,
   XCircle,
   TrendingUp,
-  Banknote
+  Banknote,
+  Download
 } from 'lucide-react';
 import { api } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
+import { useToast } from '../contexts/ToastContext';
+import { generatePdfBlob } from '../utils/pdfGenerator';
 import { Card, Panel, StatusPill, EmptyState, LoadingPanel, titleCase } from '../components/ui';
 
 const moneyFormatter = new Intl.NumberFormat('fr-FR', {
@@ -28,9 +31,11 @@ function formatDate(value) {
 
 export function Dashboard() {
   const { session } = useAuth();
+  const { notify } = useToast();
   const [dashboard, setDashboard] = useState(null);
   const [factures, setFactures] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [downloadingId, setDownloadingId] = useState(null);
 
   useEffect(() => {
     const loadData = async () => {
@@ -51,6 +56,28 @@ export function Dashboard() {
       loadData();
     }
   }, [session]);
+
+  const downloadFacturePdf = async (facture) => {
+    setDownloadingId(facture.id);
+    try {
+      const fullFacture = await api(`/api/factures/${facture.id}`, { token: session.token });
+      const blob = await generatePdfBlob(fullFacture);
+      const objectUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = objectUrl;
+      link.download = `${fullFacture.numero}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(objectUrl);
+      notify('success', `PDF de ${fullFacture.numero} téléchargé.`);
+    } catch (error) {
+      console.error('PDF download error:', error);
+      notify('error', error.message || 'Erreur lors de la génération du PDF.');
+    } finally {
+      setDownloadingId(null);
+    }
+  };
 
   const dashboardAnalytics = useMemo(() => {
     const monthlyMap = new Map();
@@ -172,6 +199,7 @@ export function Dashboard() {
                   <th>Statut</th>
                   <th>Création</th>
                   <th>Lignes</th>
+                  <th>PDF</th>
                 </tr>
               </thead>
               <tbody>
@@ -183,6 +211,18 @@ export function Dashboard() {
                     <td><StatusPill value={facture.statut} /></td>
                     <td>{formatDate(facture.date_creation || facture.created_at)}</td>
                     <td>{facture.lignes_facture?.length || 0}</td>
+                    <td>
+                      <button
+                        type="button"
+                        className="btn btn-small btn-secondary btn-icon"
+                        disabled={downloadingId === facture.id}
+                        onClick={() => downloadFacturePdf(facture)}
+                        title="Télécharger la facture PDF"
+                      >
+                        <Download size={14} />
+                        {downloadingId === facture.id ? '...' : 'PDF'}
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
