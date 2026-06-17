@@ -9,8 +9,17 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "formik": "^2.4.9",
+    "jspdf": "^4.2.1",
+    "jspdf-autotable": "^5.0.8",
+    "lucide-react": "^1.20.0",
+    "qrcode": "^1.5.4",
     "react": "^19.2.7",
-    "react-dom": "^19.2.7"
+    "react-dom": "^19.2.7",
+    "react-router-dom": "^7.18.0",
+    "react-signature-canvas": "^1.1.0-alpha.2",
+    "recharts": "^3.8.1",
+    "yup": "^1.7.1"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^6.0.2",
