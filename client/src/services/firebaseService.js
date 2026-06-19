@@ -1,11 +1,9 @@
 /**
- * firebaseService.js — alertes workflow temps réel.
- * Le cahier des charges prévoit Firebase Realtime Database ;
- * ici PostgreSQL + polling remplace Firebase tout en conservant la même API front.
+ * firebaseService.js — alertes workflow via Firebase Realtime Database (cahier des charges PFA).
  */
-import { api } from './api';
-
-const LOCAL_ALERTS_KEY = 'facturation_workflow_alerts';
+import { initializeApp, getApps } from 'firebase/app';
+import { getDatabase, onValue, ref, update, off } from 'firebase/database';
+import { firebaseConfig, isFirebaseConfigured } from '../config/firebase';
 
 export const ALERT_TYPES = {
   CREATED: 'facture_created',
@@ -14,58 +12,106 @@ export const ALERT_TYPES = {
   PAID: 'facture_paid'
 };
 
-export function getLocalAlerts() {
-  try {
-    return JSON.parse(localStorage.getItem(LOCAL_ALERTS_KEY) || '[]');
-  } catch {
+let database = null;
+
+function getDb() {
+  if (!isFirebaseConfigured()) {
+    return null;
+  }
+
+  if (!database) {
+    const app = getApps().length ? getApps()[0] : initializeApp(firebaseConfig);
+    database = getDatabase(app);
+  }
+
+  return database;
+}
+
+function normalizeAlert(id, value) {
+  return {
+    id,
+    user_id: value.user_id ?? null,
+    type: value.type,
+    message: value.message,
+    facture_numero: value.facture_numero ?? null,
+    lu: Boolean(value.lu),
+    created_at: value.created_at
+  };
+}
+
+function filterAlertsForUser(alerts, { userId, role }) {
+  const sorted = alerts.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
+  if (role === 'admin') {
+    return sorted.slice(0, 50);
+  }
+
+  return sorted
+    .filter((alert) => alert.user_id === String(userId))
+    .slice(0, 50);
+}
+
+export async function fetchAlerts({ userId, role }) {
+  const db = getDb();
+  if (!db) {
     return [];
   }
+
+  return new Promise((resolve, reject) => {
+    const alertsRef = ref(db, 'workflow_alerts');
+    onValue(
+      alertsRef,
+      (snapshot) => {
+        const value = snapshot.val() || {};
+        const alerts = Object.entries(value).map(([id, alert]) => normalizeAlert(id, alert));
+        resolve(filterAlertsForUser(alerts, { userId, role }));
+      },
+      reject,
+      { onlyOnce: true }
+    );
+  });
 }
 
-export function pushLocalAlert(alert) {
-  const alerts = getLocalAlerts();
-  alerts.unshift({ ...alert, id: `local-${Date.now()}`, lu: false, created_at: new Date().toISOString() });
-  localStorage.setItem(LOCAL_ALERTS_KEY, JSON.stringify(alerts.slice(0, 50)));
-}
-
-export async function fetchAlerts(token) {
-  const remote = await api('/api/alerts', { token });
-  const local = getLocalAlerts();
-  const merged = [...remote, ...local.filter((l) => !remote.some((r) => r.message === l.message))];
-  return merged.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-}
-
-export async function markAlertAsRead(id, token) {
-  if (String(id).startsWith('local-')) {
-    const alerts = getLocalAlerts().map((a) => (a.id === id ? { ...a, lu: true } : a));
-    localStorage.setItem(LOCAL_ALERTS_KEY, JSON.stringify(alerts));
-    return { message: 'Alerte locale marquée comme lue.' };
+export async function markAlertAsRead(id, { userId, role }) {
+  const db = getDb();
+  if (!db) {
+    throw new Error('Firebase Realtime Database non configuré.');
   }
-  return api(`/api/alerts/${id}/read`, { method: 'PATCH', token });
+
+  const alerts = await fetchAlerts({ userId, role });
+  const alert = alerts.find((item) => item.id === id);
+
+  if (!alert) {
+    throw new Error('Alerte introuvable.');
+  }
+
+  if (role !== 'admin' && alert.user_id !== String(userId)) {
+    throw new Error('Accès interdit.');
+  }
+
+  await update(ref(db, `workflow_alerts/${id}`), { lu: true });
+  return { message: 'Alerte marquée comme lue.', alert: { ...alert, lu: true } };
 }
 
-export function subscribeToAlerts(token, callback, intervalMs = 30000) {
-  let active = true;
+export function subscribeToAlerts({ userId, role }, callback) {
+  const db = getDb();
+  if (!db || !userId) {
+    return () => {};
+  }
 
-  const poll = async () => {
-    if (!active || !token) return;
-    try {
-      const alerts = await fetchAlerts(token);
-      callback(alerts);
-    } catch (error) {
-      console.warn('[firebaseService] poll error:', error.message);
-    }
+  const alertsRef = ref(db, 'workflow_alerts');
+
+  const listener = (snapshot) => {
+    const value = snapshot.val() || {};
+    const alerts = Object.entries(value).map(([id, alert]) => normalizeAlert(id, alert));
+    callback(filterAlertsForUser(alerts, { userId, role }));
   };
 
-  poll();
-  const timer = window.setInterval(poll, intervalMs);
+  onValue(alertsRef, listener);
 
-  return () => {
-    active = false;
-    window.clearInterval(timer);
-  };
+  return () => off(alertsRef, 'value', listener);
 }
 
 export function notifyWorkflowAlert(type, { numero, message }) {
-  pushLocalAlert({ type, facture_numero: numero, message });
+  console.info('[firebaseService] local workflow hint:', type, numero, message);
 }

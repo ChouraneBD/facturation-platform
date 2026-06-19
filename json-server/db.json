@@ -1,0 +1,51 @@
+{
+  "articles": [
+    {
+      "id": 1,
+      "designation": "Ordinateur",
+      "prix_unitaire": 5000,
+      "categorie_id": 1,
+      "actif": true,
+      "created_at": "2025-01-01T00:00:00.000Z"
+    },
+    {
+      "id": 2,
+      "designation": "Création de site vitrine",
+      "prix_unitaire": 1200,
+      "categorie_id": 1,
+      "actif": true,
+      "created_at": "2025-01-01T00:00:00.000Z"
+    },
+    {
+      "id": 3,
+      "designation": "Audit de sécurité",
+      "prix_unitaire": 800,
+      "categorie_id": 2,
+      "actif": true,
+      "created_at": "2025-01-01T00:00:00.000Z"
+    },
+    {
+      "id": 4,
+      "designation": "Formation React",
+      "prix_unitaire": 1500,
+      "categorie_id": 3,
+      "actif": true,
+      "created_at": "2025-01-01T00:00:00.000Z"
+    }
+  ],
+  "categories": [
+    { "id": 1, "nom": "Informatique", "taux_tva": 20 },
+    { "id": 2, "nom": "Services", "taux_tva": 10 },
+    { "id": 3, "nom": "Formation", "taux_tva": 0 },
+    { "id": 4, "nom": "Fournitures", "taux_tva": 20 }
+  ],
+  "parametres": [
+    { "id": 1, "cle": "societe_nom", "valeur": "TechPro Services", "description": "Nom de la société affiché sur les PDF" },
+    { "id": 2, "cle": "societe_tagline", "valeur": "EMSI Casablanca — Facturation Platform", "description": "Sous-titre entreprise" },
+    { "id": 3, "cle": "societe_adresse", "valeur": "123 Avenue des Technologies, Casablanca", "description": "Adresse entreprise" },
+    { "id": 4, "cle": "societe_email", "valeur": "contact@techpro-services.ma", "description": "Email de contact" },
+    { "id": 5, "cle": "societe_telephone", "valeur": "+212 5 22 00 00 00", "description": "Téléphone entreprise" },
+    { "id": 6, "cle": "devise", "valeur": "MAD", "description": "Devise par défaut (EUR, MAD, USD)" },
+    { "id": 7, "cle": "logo_base64", "valeur": "", "description": "Logo entreprise encodé en base64 (data URL)" }
+  ]
+}

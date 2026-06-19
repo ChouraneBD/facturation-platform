@@ -143,7 +143,7 @@ export function Factures() {
     try {
       const payload = {
         ...values,
-        client_id: Number(values.client_id),
+        client_id: values.client_id,
         methode_calcul: Number(values.methode_calcul),
         remise_globale_pct: Number(values.remise_globale_pct || 0),
         lignes: values.lignes.map(line => ({

@@ -35,7 +35,7 @@ import NotificationsNoneIcon from '@mui/icons-material/NotificationsNone';
 import MenuIcon from '@mui/icons-material/Menu';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
-import { fetchAlerts, markAlertAsRead } from '../services/firebaseService';
+import { subscribeToAlerts, markAlertAsRead } from '../services/firebaseService';
 
 const tabs = [
   { id: '/dashboard', label: 'Dashboard', icon: DashboardIcon },
@@ -63,26 +63,11 @@ export function DashboardLayout() {
   const unreadCount = alerts.filter((a) => !a.lu).length;
 
   useEffect(() => {
-    if (!session?.token) return undefined;
+    if (!session?.user?.id) return undefined;
 
-    let cancelled = false;
-
-    const load = async () => {
-      try {
-        const data = await fetchAlerts(session.token);
-        if (!cancelled) setAlerts(data);
-      } catch (error) {
-        console.warn('Alerts load error:', error.message);
-      }
-    };
-
-    load();
-    const timer = window.setInterval(load, 30000);
-    return () => {
-      cancelled = true;
-      window.clearInterval(timer);
-    };
-  }, [session?.token]);
+    const context = { userId: session.user.id, role: session.user.role };
+    return subscribeToAlerts(context, setAlerts);
+  }, [session?.user?.id, session?.user?.role]);
 
   const handleLogout = () => {
     logout();
@@ -91,7 +76,7 @@ export function DashboardLayout() {
 
   const handleMarkRead = async (alert) => {
     try {
-      await markAlertAsRead(alert.id, session.token);
+      await markAlertAsRead(alert.id, { userId: session.user.id, role: session.user.role });
       setAlerts((prev) => prev.map((a) => (a.id === alert.id ? { ...a, lu: true } : a)));
     } catch (error) {
       notify('error', error.message);

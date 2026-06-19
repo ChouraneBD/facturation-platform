@@ -75,7 +75,7 @@ export function Login() {
           <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
             <Box>
               <Typography fontWeight={700}>jsonService.js</Typography>
-              <Typography variant="body2" sx={{ opacity: 0.9 }}>CRUD via API REST</Typography>
+              <Typography variant="body2" sx={{ opacity: 0.9 }}>CRUD via JSON Server</Typography>
             </Box>
             <Box>
               <Typography fontWeight={700}>firebaseService.js</Typography>

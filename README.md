@@ -1,94 +1,108 @@
 # Facturation Platform
 
-Backend and frontend for the SaaS invoicing platform (PFA EMSI Casablanca).
+Application web de gestion de facturation — PFA EMSI Casablanca.
 
 ## Conformité cahier des charges
 
 | Exigence | Implémentation |
 |----------|----------------|
 | React JS | `client/` — React 19 + Vite |
-| Material UI | `@mui/material` — dashboard, login, composants partagés |
-| JSON Server (CRUD) | `jsonService.js` → API REST Express + PostgreSQL |
-| Firebase (alertes) | `firebaseService.js` → table `workflow_alerts` + polling |
+| Material UI | `@mui/material` |
+| JSON Server | `json-server/` — articles, catégories, paramètres (`jsonService.js`) |
+| Firebase Realtime Database | `firebaseService.js` — alertes workflow temps réel |
+| MongoDB | `server/` — clients, factures, utilisateurs |
 | jsPDF | Génération PDF avec logo, signature, QR |
-| Export Excel | Bouton export sur la page Factures (`xlsx`) |
-| Multi-devise | Paramètre `devise` (EUR, MAD, USD) |
-| Archivage annuel | Filtre par année sur factures + dashboard |
-| Alertes workflow | Création / validation / rejet / paiement |
+| Formik + Yup | Validation des formulaires |
+| JWT + rôles | Auth Express, protection des routes |
 
-## Structure
+## Architecture
 
-- `server/`: Node.js, Express, Sequelize, PostgreSQL API
-- `client/`: Vite + React + Material UI
+```
+client (React)
+  ├── jsonService.js  → JSON Server :3001  (articles, categories, parametres)
+  ├── jsonService.js  → Express :5000       (auth, clients, factures, dashboard)
+  └── firebaseService.js → Firebase RTDB    (alertes workflow)
 
-## Services frontend (architecture PFA)
+server (Express + MongoDB)
+  └── écrit les alertes dans Firebase via Firebase Admin
 
-- `client/src/services/jsonService.js` — CRUD clients, articles, factures, paramètres
-- `client/src/services/firebaseService.js` — alertes workflow temps réel
-- `client/src/services/api.js` — couche HTTP bas niveau
-
-
-## Backend
-
-### Requirements
-
-- PostgreSQL running locally
-- `server/.env` configured with:
-  - `DB_NAME`
-  - `DB_USER`
-  - `DB_PASSWORD`
-  - `DB_HOST`
-  - `JWT_SECRET` optional, fallback is `C41CF281DC`
-
-### Start
-
-```bash
-cd server
-npm install
-npm start
+json-server (db.json)
+  └── articles.json structure du cahier des charges
 ```
 
-### Useful API routes
+## Prérequis
 
-- `POST /api/auth/register`
-- `POST /api/auth/login`
-- `GET /api/clients`
-- `GET /api/categories`
-- `GET /api/articles`
-- `GET /api/factures?annee=2025`
-- `GET /api/parametres`
-- `GET /api/dashboard/metrics?annee=2025`
-- `GET /api/alerts`
-- `POST /api/contact`
+- Node.js 18+
+- MongoDB en local (`mongodb://127.0.0.1:27017/facturation`)
+- Projet Firebase avec **Realtime Database** activée
 
-### Smoke test
+## Configuration
 
-```bash
-cd server
-npm run smoke
+### 1. Server (`server/.env`)
+
+Copier `server/.env.example` vers `server/.env` et renseigner :
+
+- `MONGODB_URI`
+- `JWT_SECRET`
+- `FIREBASE_PROJECT_ID`, `FIREBASE_CLIENT_EMAIL`, `FIREBASE_PRIVATE_KEY`, `FIREBASE_DATABASE_URL`
+
+### 2. Client (`client/.env`)
+
+Copier `client/.env.example` vers `client/.env` et renseigner les variables `VITE_FIREBASE_*`.
+
+### 3. Firebase Realtime Database — règles (dev)
+
+```json
+{
+  "rules": {
+    "workflow_alerts": {
+      ".read": true,
+      ".write": true
+    }
+  }
+}
 ```
 
-## Frontend
+Pour la production, restreindre la lecture/écriture aux utilisateurs authentifiés.
 
-### Start
+## Démarrage
 
 ```bash
-cd client
-npm install
+# Installer toutes les dépendances
+npm run install:all
+
+# Lancer JSON Server + Express + React
 npm run dev
 ```
 
-### Build
+Ou séparément :
 
 ```bash
-cd client
-npm run build
+npm run dev:json-server   # http://localhost:3001
+npm run dev:server        # http://localhost:5000
+npm run dev:client        # http://localhost:5173
 ```
 
-### API URL
+## Comptes de test
 
-Set `VITE_API_URL` in `client/.env` if the API is not running at `http://localhost:5000`.
+Créés automatiquement au démarrage du serveur :
 
-## Status
+| Email | Mot de passe | Rôle |
+|-------|--------------|------|
+| admin@test.com | password123 | admin |
+| client@test.com | password123 | user |
 
-The backend has been verified with live API smoke tests, and the frontend builds successfully.
+## Smoke test
+
+```bash
+# JSON Server et Express doivent être démarrés
+cd server && npm run smoke
+```
+
+## Données JSON Server
+
+Le fichier `json-server/db.json` contient la structure du cahier des charges :
+
+- `articles` — catalogue produits/services
+- `categories` — Informatique (20%), Services (10%), Formation (0%), Fournitures (20%)
+- `parametres` — configuration société, devise, logo

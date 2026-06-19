@@ -1,116 +1,44 @@
-const { DataTypes } = require('sequelize');
-const sequelize = require('../config/database');
+const mongoose = require('mongoose');
 
-const Facture = sequelize.define('Facture', {
-    id: {
-        type: DataTypes.INTEGER,
-        primaryKey: true,
-        autoIncrement: true
-    },
-    numero: {
-        type: DataTypes.STRING(50),
-        allowNull: false,
-        unique: true
-    },
-    date_creation: {
-        type: DataTypes.DATEONLY,
-        allowNull: true,
-        defaultValue: sequelize.literal('CURRENT_DATE')
-    },
-    statut: {
-        type: DataTypes.STRING(30),
-        allowNull: false,
-        defaultValue: 'en_attente',
-        validate: {
-            isIn: [['en_attente', 'validee', 'rejetee', 'payee']]
-        }
-    },
-    methode_calcul: {
-        type: DataTypes.SMALLINT,
-        allowNull: false,
-        validate: {
-            min: 1,
-            max: 4
-        }
-    },
-    remise_globale_pct: {
-        type: DataTypes.DECIMAL(5, 2),
-        allowNull: true,
-        defaultValue: 0
-    },
-    total_ht: {
-        type: DataTypes.DECIMAL(12, 2),
-        allowNull: false
-    },
-    tva: {
-        type: DataTypes.DECIMAL(12, 2),
-        allowNull: false,
-        defaultValue: 0
-    },
-    total_ttc: {
-        type: DataTypes.DECIMAL(12, 2),
-        allowNull: false
-    },
-    date_depot: {
-        type: DataTypes.DATEONLY,
-        allowNull: true
-    },
-    date_encaissement: {
-        type: DataTypes.DATEONLY,
-        allowNull: true
-    },
-    type_virement: {
-        type: DataTypes.STRING(50),
-        allowNull: true
-    },
-    signature_base64: {
-        type: DataTypes.TEXT,
-        allowNull: true
-    },
-    pdf_url: {
-        type: DataTypes.STRING(500),
-        allowNull: true
-    },
-    commentaire_admin: {
-        type: DataTypes.TEXT,
-        allowNull: true
-    },
-    client_id: {
-        type: DataTypes.INTEGER,
-        allowNull: false,
-        references: {
-            model: 'clients',
-            key: 'id'
-        }
-    },
-    user_id: {
-        type: DataTypes.INTEGER,
-        allowNull: false,
-        references: {
-            model: 'users',
-            key: 'id'
-        }
-    },
-    validated_by: {
-        type: DataTypes.INTEGER,
-        allowNull: true,
-        references: {
-            model: 'users',
-            key: 'id'
-        }
-    },
-    validated_at: {
-        type: DataTypes.DATE,
-        allowNull: true
-    },
-    created_at: {
-        type: DataTypes.DATE,
-        allowNull: true,
-        defaultValue: sequelize.literal('NOW()')
-    }
-}, {
-    tableName: 'factures',
-    timestamps: false
+const ligneFactureSchema = new mongoose.Schema({
+  article_id: { type: Number, default: null },
+  designation_snapshot: { type: String, required: true },
+  quantite: { type: Number, required: true },
+  prix_unitaire_applique: { type: Number, required: true },
+  remise_pct: { type: Number, default: 0 },
+  tva_pct: { type: Number, default: 20 },
+  total_ligne: { type: Number, required: true }
+}, { _id: true });
+
+const factureSchema = new mongoose.Schema({
+  numero: { type: String, required: true, unique: true },
+  date_creation: { type: Date, default: Date.now },
+  statut: {
+    type: String,
+    enum: ['en_attente', 'validee', 'rejetee', 'payee'],
+    default: 'en_attente'
+  },
+  methode_calcul: { type: Number, required: true, min: 1, max: 4 },
+  remise_globale_pct: { type: Number, default: 0 },
+  total_ht: { type: Number, required: true },
+  tva: { type: Number, required: true, default: 0 },
+  total_ttc: { type: Number, required: true },
+  date_depot: { type: Date, default: null },
+  date_encaissement: { type: Date, default: null },
+  type_virement: { type: String, default: null },
+  signature_base64: { type: String, default: null },
+  pdf_url: { type: String, default: null },
+  commentaire_admin: { type: String, default: null },
+  client_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Client', required: true },
+  user_id: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  validated_by: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+  validated_at: { type: Date, default: null },
+  created_at: { type: Date, default: Date.now },
+  lignes_facture: { type: [ligneFactureSchema], default: [] }
 });
 
-module.exports = Facture;
+factureSchema.virtual('id').get(function getId() {
+  return this._id.toString();
+});
+
+module.exports = mongoose.model('Facture', factureSchema);

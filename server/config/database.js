@@ -1,21 +1,11 @@
-const { Sequelize } = require('sequelize');
-require('dotenv').config();
+const mongoose = require('mongoose');
 
-const sequelize = new Sequelize(
-    process.env.DB_NAME,
-    process.env.DB_USER,
-    String(process.env.DB_PASSWORD || 'C41CF281DC'), // Updated fallback password
-    {
-        host: process.env.DB_HOST || 'localhost',
-        dialect: 'postgres',
-        logging: false, // Prevents terminal spam with SQL queries during development
-        pool: {
-            max: 5,
-            min: 0,
-            acquire: 30000,
-            idle: 10000
-        }
-    }
-);
+const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/facturation';
 
-module.exports = sequelize;
+async function connectDatabase() {
+  mongoose.set('strictQuery', true);
+  await mongoose.connect(MONGODB_URI);
+  console.log('✅ MongoDB connection established successfully.');
+}
+
+module.exports = connectDatabase;
