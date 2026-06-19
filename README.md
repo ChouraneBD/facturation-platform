@@ -1,11 +1,32 @@
 # Facturation Platform
 
-Backend and frontend for the SaaS invoicing platform.
+Backend and frontend for the SaaS invoicing platform (PFA EMSI Casablanca).
+
+## Conformité cahier des charges
+
+| Exigence | Implémentation |
+|----------|----------------|
+| React JS | `client/` — React 19 + Vite |
+| Material UI | `@mui/material` — dashboard, login, composants partagés |
+| JSON Server (CRUD) | `jsonService.js` → API REST Express + PostgreSQL |
+| Firebase (alertes) | `firebaseService.js` → table `workflow_alerts` + polling |
+| jsPDF | Génération PDF avec logo, signature, QR |
+| Export Excel | Bouton export sur la page Factures (`xlsx`) |
+| Multi-devise | Paramètre `devise` (EUR, MAD, USD) |
+| Archivage annuel | Filtre par année sur factures + dashboard |
+| Alertes workflow | Création / validation / rejet / paiement |
 
 ## Structure
 
 - `server/`: Node.js, Express, Sequelize, PostgreSQL API
-- `client/`: Vite + React admin frontend
+- `client/`: Vite + React + Material UI
+
+## Services frontend (architecture PFA)
+
+- `client/src/services/jsonService.js` — CRUD clients, articles, factures, paramètres
+- `client/src/services/firebaseService.js` — alertes workflow temps réel
+- `client/src/services/api.js` — couche HTTP bas niveau
+
 
 ## Backend
 
@@ -34,9 +55,11 @@ npm start
 - `GET /api/clients`
 - `GET /api/categories`
 - `GET /api/articles`
-- `GET /api/factures`
+- `GET /api/factures?annee=2025`
 - `GET /api/parametres`
-- `GET /api/dashboard/metrics`
+- `GET /api/dashboard/metrics?annee=2025`
+- `GET /api/alerts`
+- `POST /api/contact`
 
 ### Smoke test
 
