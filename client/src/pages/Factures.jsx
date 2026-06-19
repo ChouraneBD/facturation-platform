@@ -1,9 +1,14 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Formik, Form, FieldArray } from 'formik';
 import * as Yup from 'yup';
-import { api } from '../services/api';
+import { Button, Stack } from '@mui/material';
+import FileDownloadIcon from '@mui/icons-material/FileDownload';
+import { facturesService, clientsService, articlesService, loadAppSettings } from '../services/jsonService';
+import { notifyWorkflowAlert, ALERT_TYPES } from '../services/firebaseService';
 import { calculateInvoiceTotals } from '../utils/invoiceCalculations';
 import { generatePdfBlob } from '../utils/pdfGenerator';
+import { exportFacturesToExcel } from '../utils/excelExport';
+import { formatMoney } from '../utils/formatMoney';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import { Panel, Field, StatusPill, EmptyState, titleCase, blobToBase64 } from '../components/ui';
@@ -18,9 +23,6 @@ function formatDate(value) {
   if (!value) return '—';
   return new Date(value).toLocaleDateString('fr-FR');
 }
-
-const moneyFormatter = new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' });
-function formatMoney(value) { return moneyFormatter.format(Number(value || 0)); }
 
 const makeInvoiceLine = () => ({
   article_id: '',
@@ -38,29 +40,35 @@ export function Factures() {
   const [factures, setFactures] = useState([]);
   const [clients, setClients] = useState([]);
   const [articles, setArticles] = useState([]);
+  const [appSettings, setAppSettings] = useState({ devise: 'MAD' });
   
   const [factureSearch, setFactureSearch] = useState('');
   const [factureStatusFilter, setFactureStatusFilter] = useState('all');
   const [factureDateFrom, setFactureDateFrom] = useState('');
   const [factureDateTo, setFactureDateTo] = useState('');
+  const [archiveYear, setArchiveYear] = useState('');
   const [facturePage, setFacturePage] = useState(1);
+
+  const displayMoney = (value) => formatMoney(value, appSettings.devise);
 
   const loadData = async () => {
     try {
-      const [facturesData, clientsData, articlesData] = await Promise.all([
-        api('/api/factures', { token: session.token }),
-        api('/api/clients', { token: session.token }),
-        api('/api/articles', { token: session.token })
+      const [facturesData, clientsData, articlesData, settings] = await Promise.all([
+        facturesService.list(session.token, archiveYear ? { annee: archiveYear } : {}),
+        clientsService.list(session.token),
+        articlesService.list(session.token),
+        loadAppSettings(session.token)
       ]);
       setFactures(facturesData);
       setClients(clientsData);
       setArticles(articlesData);
+      setAppSettings(settings);
     } catch (error) {
       notify('error', error.message);
     }
   };
 
-  useEffect(() => { loadData(); }, []);
+  useEffect(() => { loadData(); }, [archiveYear]);
 
   const filteredFactures = useMemo(() => {
     const search = normalizeText(factureSearch);
@@ -78,11 +86,19 @@ export function Factures() {
   const factureTotalPages = Math.max(1, Math.ceil(filteredFactures.length / facturePageSize));
   const currentFactures = filteredFactures.slice((facturePage - 1) * facturePageSize, facturePage * facturePageSize);
 
-  useEffect(() => { setFacturePage(1); }, [factureSearch, factureStatusFilter, factureDateFrom, factureDateTo]);
+  useEffect(() => { setFacturePage(1); }, [factureSearch, factureStatusFilter, factureDateFrom, factureDateTo, archiveYear]);
 
   const downloadFacturePdf = async (facture) => {
     try {
-      const blob = await generatePdfBlob(facture);
+      const blob = await generatePdfBlob(facture, {
+        name: appSettings.societeNom,
+        tagline: appSettings.societeTagline,
+        address: appSettings.societeAdresse,
+        email: appSettings.societeEmail,
+        phone: appSettings.societeTelephone,
+        logoBase64: appSettings.logoBase64,
+        devise: appSettings.devise
+      });
       const objectUrl = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = objectUrl;
@@ -140,12 +156,12 @@ export function Factures() {
         }))
       };
 
-      const result = await api('/api/factures', {
-        method: 'POST',
-        token: session.token,
-        body: payload
-      });
+      const result = await facturesService.create(payload, session.token);
 
+      notifyWorkflowAlert(ALERT_TYPES.CREATED, {
+        numero: result.facture?.numero || result.numero,
+        message: result.message
+      });
       notify('success', result.message || 'Facture créée.');
       resetForm();
       loadData();
@@ -165,30 +181,24 @@ export function Factures() {
           pdfBase64 = await blobToBase64(pdfBlob);
         }
 
-        const result = await api(`/api/factures/${facture.id}/validation`, {
-          method: 'PATCH',
-          token: session.token,
-          body: { statut: nextStatus, pdfBase64, commentaire_admin: comment || null }
+        const result = await facturesService.validate(facture.id, { statut: nextStatus, pdfBase64, commentaire_admin: comment || null }, session.token);
+        notifyWorkflowAlert(nextStatus === 'validee' ? ALERT_TYPES.VALIDATED : ALERT_TYPES.REJECTED, {
+          numero: facture.numero,
+          message: result.message
         });
-
         notify('success', result.message || `Facture ${facture.numero} traitée. Notification email envoyée.`);
       } else {
-        await api(`/api/factures/${facture.id}/remise-globale`, {
-          method: 'PATCH',
-          token: session.token,
-          body: { remise_globale_pct: Number(discount || 0) }
-        });
+        await facturesService.updateGlobalDiscount(facture.id, { remise_globale_pct: Number(discount || 0) }, session.token);
 
-        const result = await api(`/api/factures/${facture.id}/statut`, {
-          method: 'PATCH',
-          token: session.token,
-          body: {
-            statut: nextStatus,
-            commentaire_admin: comment,
-            date_encaissement: dateEncaissement || null,
-            type_virement: typeVirement || null
-          }
-        });
+        const result = await facturesService.updateStatus(facture.id, {
+          statut: nextStatus,
+          commentaire_admin: comment,
+          date_encaissement: dateEncaissement || null,
+          type_virement: typeVirement || null
+        }, session.token);
+        if (nextStatus === 'payee') {
+          notifyWorkflowAlert(ALERT_TYPES.PAID, { numero: facture.numero, message: result.message });
+        }
         notify('success', result.message || `Facture ${facture.numero} mise à jour.`);
       }
       loadData();
@@ -305,9 +315,9 @@ export function Factures() {
                   </FieldArray>
 
                   <div className="invoice-totals card">
-                    <div className="total-row"><span>Total HT</span><strong>{formatMoney(preview.total_ht)}</strong></div>
-                    <div className="total-row"><span>TVA</span><strong>{formatMoney(preview.tva)}</strong></div>
-                    <div className="total-row highlight"><span>Total TTC</span><strong>{formatMoney(preview.total_ttc)}</strong></div>
+                    <div className="total-row"><span>Total HT</span><strong>{displayMoney(preview.total_ht)}</strong></div>
+                    <div className="total-row"><span>TVA</span><strong>{displayMoney(preview.tva)}</strong></div>
+                    <div className="total-row highlight"><span>Total TTC</span><strong>{displayMoney(preview.total_ttc)}</strong></div>
                   </div>
 
                   <Field label="Signature numérique" wide error={touched.signature_base64 && errors.signature_base64}>
@@ -327,7 +337,7 @@ export function Factures() {
         </Panel>
       )}
 
-      <Panel title="Liste des factures" subtitle="Suivi, validation et notifications email.">
+      <Panel title="Liste des factures" subtitle="Suivi, validation, archivage annuel et export Excel.">
         <div className="filter-bar">
           <input type="search" placeholder="Rechercher..." value={factureSearch} onChange={e => setFactureSearch(e.target.value)} />
           <select value={factureStatusFilter} onChange={e => setFactureStatusFilter(e.target.value)}>
@@ -337,8 +347,26 @@ export function Factures() {
             <option value="payee">Payée</option>
             <option value="rejetee">Rejetée</option>
           </select>
+          <select value={archiveYear} onChange={e => setArchiveYear(e.target.value)} title="Archivage annuel">
+            <option value="">Toutes les années</option>
+            {[2026, 2025, 2024, 2023].map((year) => (
+              <option key={year} value={year}>Archive {year}</option>
+            ))}
+          </select>
           <input type="date" value={factureDateFrom} onChange={e => setFactureDateFrom(e.target.value)} />
           <input type="date" value={factureDateTo} onChange={e => setFactureDateTo(e.target.value)} />
+          <Button
+            variant="contained"
+            color="success"
+            size="small"
+            startIcon={<FileDownloadIcon />}
+            onClick={() => {
+              exportFacturesToExcel(filteredFactures, { devise: appSettings.devise, year: archiveYear || null });
+              notify('success', `${filteredFactures.length} facture(s) exportée(s) en Excel.`);
+            }}
+          >
+            Export Excel
+          </Button>
         </div>
 
         <div className="list-group">
@@ -350,7 +378,7 @@ export function Factures() {
                   <div className="muted">{facture.Client?.nom} • {formatDate(facture.date_creation || facture.created_at)}</div>
                 </div>
                 <div style={{ textAlign: 'right' }}>
-                  <div style={{ fontSize: '1.25rem', fontWeight: 600 }}>{formatMoney(facture.total_ttc)}</div>
+                  <div style={{ fontSize: '1.25rem', fontWeight: 600 }}>{displayMoney(facture.total_ttc)}</div>
                   <StatusPill value={facture.statut} />
                 </div>
               </div>
