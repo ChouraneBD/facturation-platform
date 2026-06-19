@@ -52,8 +52,28 @@ const upsertParametre = async (req, res) => {
     }
 };
 
+const defaultParametres = [
+    { cle: 'societe_nom', valeur: 'TechPro Services', description: 'Nom de la société affiché sur les PDF' },
+    { cle: 'societe_tagline', valeur: 'EMSI Casablanca — Facturation Platform', description: 'Sous-titre entreprise' },
+    { cle: 'societe_adresse', valeur: '123 Avenue des Technologies, Casablanca', description: 'Adresse entreprise' },
+    { cle: 'societe_email', valeur: 'contact@techpro-services.ma', description: 'Email de contact' },
+    { cle: 'societe_telephone', valeur: '+212 5 22 00 00 00', description: 'Téléphone entreprise' },
+    { cle: 'devise', valeur: 'MAD', description: 'Devise par défaut (EUR, MAD, USD)' },
+    { cle: 'logo_base64', valeur: '', description: 'Logo entreprise encodé en base64 (data URL)' }
+];
+
+const seedDefaultParametres = async () => {
+    for (const param of defaultParametres) {
+        await Parametre.findOrCreate({
+            where: { cle: param.cle },
+            defaults: { valeur: param.valeur, description: param.description }
+        });
+    }
+};
+
 module.exports = {
     listParametres,
     getParametre,
-    upsertParametre
+    upsertParametre,
+    seedDefaultParametres
 };
