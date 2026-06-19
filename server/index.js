@@ -18,7 +18,10 @@ const factureRoutes = require('./routes/factureRoutes');
 const parametresRoutes = require('./routes/parametresRoutes');
 const dashboardRoutes = require('./routes/dashboardRoutes');
 const { seedDefaultCategories } = require('./controllers/categoriesController');
+const { seedDefaultParametres } = require('./controllers/parametresController');
 const { warmUpEmailTransport } = require('./services/emailService');
+const { sendContactMessage } = require('./controllers/contactController');
+const alertRoutes = require('./routes/alertRoutes');
 
 Category.hasMany(Article, { foreignKey: 'categorie_id', onDelete: 'SET NULL' });
 Article.belongsTo(Category, { foreignKey: 'categorie_id', onDelete: 'SET NULL' });
@@ -46,6 +49,9 @@ app.use('/api/articles', articleRoutes);
 app.use('/api/factures', factureRoutes);
 app.use('/api/parametres', parametresRoutes);
 app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/alerts', alertRoutes);
+
+app.post('/api/contact', sendContactMessage);
 
 // Diagnostics Endpoint
 app.get('/api/status', (req, res) => {
@@ -73,6 +79,9 @@ async function initializeSystem() {
 
         await seedDefaultCategories();
         console.log('✅ Default categories seeded successfully.');
+
+        await seedDefaultParametres();
+        console.log('✅ Default parametres seeded successfully.');
 
         try {
             await warmUpEmailTransport();
