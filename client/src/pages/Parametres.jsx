@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Formik, Form } from 'formik';
 import * as Yup from 'yup';
-import { api } from '../services/api';
+import { parametresService } from '../services/jsonService';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import { Panel, Field } from '../components/ui';
@@ -18,7 +18,7 @@ export function Parametres() {
 
   const loadParametres = async () => {
     try {
-      const data = await api('/api/parametres', { token: session.token });
+      const data = await parametresService.list(session.token);
       setParametres(data);
     } catch (error) {
       notify('error', error.message);
@@ -37,11 +37,7 @@ export function Parametres() {
 
   const handleSubmit = async (values, { setSubmitting, resetForm }) => {
     try {
-      await api('/api/parametres', {
-        method: 'PUT',
-        token: session.token,
-        body: values
-      });
+      await parametresService.upsert(values, session.token);
       notify('success', 'Parametre enregistré.');
       setEditingParametreKey(null);
       resetForm();

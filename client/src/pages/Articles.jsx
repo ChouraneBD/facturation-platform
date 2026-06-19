@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Formik, Form } from 'formik';
 import * as Yup from 'yup';
-import { api } from '../services/api';
+import { articlesService, categoriesService } from '../services/jsonService';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import { Panel, Field } from '../components/ui';
@@ -26,8 +26,8 @@ export function Articles() {
   const loadData = async () => {
     try {
       const [articlesData, categoriesData] = await Promise.all([
-        api('/api/articles', { token: session.token }),
-        api('/api/categories', { token: session.token })
+        articlesService.list(session.token),
+        categoriesService.list(session.token)
       ]);
       setArticles(articlesData);
       setCategories(categoriesData);
@@ -64,16 +64,17 @@ export function Articles() {
 
   const handleSubmit = async (values, { setSubmitting, resetForm }) => {
     try {
-      await api(editingArticleId ? `/api/articles/${editingArticleId}` : '/api/articles', {
-        method: editingArticleId ? 'PUT' : 'POST',
-        token: session.token,
-        body: {
-          designation: values.designation,
-          prix_unitaire: Number(values.prix_unitaire || 0),
-          categorie_id: values.categorie_id ? Number(values.categorie_id) : null,
-          actif: Boolean(values.actif)
-        }
-      });
+      const payload = {
+        designation: values.designation,
+        prix_unitaire: Number(values.prix_unitaire || 0),
+        categorie_id: values.categorie_id ? Number(values.categorie_id) : null,
+        actif: Boolean(values.actif)
+      };
+      if (editingArticleId) {
+        await articlesService.update(editingArticleId, payload, session.token);
+      } else {
+        await articlesService.create(payload, session.token);
+      }
       notify('success', editingArticleId ? 'Article mis à jour.' : 'Article créé.');
       setEditingArticleId(null);
       resetForm();
@@ -103,7 +104,7 @@ export function Articles() {
   const deleteArticle = async (id) => {
     if (!window.confirm('Supprimer cet article ?')) return;
     try {
-      await api(`/api/articles/${id}`, { method: 'DELETE', token: session.token });
+      await articlesService.remove(id, session.token);
       notify('success', 'Article supprimé.');
       loadData();
     } catch (error) {

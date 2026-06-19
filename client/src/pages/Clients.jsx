@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Formik, Form } from 'formik';
 import * as Yup from 'yup';
-import { api } from '../services/api';
+import { clientsService } from '../services/jsonService';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import { Panel, Field } from '../components/ui';
@@ -17,7 +17,7 @@ export function Clients() {
 
   const loadClients = async () => {
     try {
-      const data = await api('/api/clients', { token: session.token });
+      const data = await clientsService.list(session.token);
       setClients(data);
     } catch (error) {
       notify('error', error.message);
@@ -38,11 +38,11 @@ export function Clients() {
 
   const handleSubmit = async (values, { setSubmitting, resetForm }) => {
     try {
-      await api(editingClientId ? `/api/clients/${editingClientId}` : '/api/clients', {
-        method: editingClientId ? 'PUT' : 'POST',
-        token: session.token,
-        body: values
-      });
+      if (editingClientId) {
+        await clientsService.update(editingClientId, values, session.token);
+      } else {
+        await clientsService.create(values, session.token);
+      }
       notify('success', editingClientId ? 'Client mis à jour.' : 'Client créé.');
       setEditingClientId(null);
       resetForm();
@@ -73,7 +73,7 @@ export function Clients() {
   const deleteClient = async (id) => {
     if (!window.confirm('Supprimer ce client ?')) return;
     try {
-      await api(`/api/clients/${id}`, { method: 'DELETE', token: session.token });
+      await clientsService.remove(id, session.token);
       notify('success', 'Client supprimé.');
       loadClients();
     } catch (error) {

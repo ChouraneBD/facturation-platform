@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useCart } from '../../contexts/CartContext';
 import { useToast } from '../../contexts/ToastContext';
-import { api } from '../../services/api';
+import { articlesService, contactService } from '../../services/jsonService';
 
 const cardGradients = [
   'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
@@ -23,7 +23,7 @@ export function Home() {
   useEffect(() => {
     const loadArticles = async () => {
       try {
-        const data = await api('/api/articles');
+        const data = await articlesService.list();
         setArticles(data.filter(a => a.actif !== false));
       } catch (error) {
         console.error("Failed to load articles:", error);
@@ -39,10 +39,23 @@ export function Home() {
     notify('success', `"${article.designation}" ajouté au panier !`);
   };
 
-  const handleContactSubmit = (e) => {
+  const handleContactSubmit = async (e) => {
     e.preventDefault();
-    notify('success', 'Votre message a bien été envoyé. Nous vous répondrons sous 24h.');
-    e.target.reset();
+    const form = e.target;
+    const payload = {
+      nom: form.nom.value,
+      email: form.email.value,
+      sujet: form.sujet.value,
+      message: form.message.value
+    };
+
+    try {
+      const result = await contactService.send(payload);
+      notify('success', result.message || 'Message envoyé.');
+      form.reset();
+    } catch (error) {
+      notify('error', error.message || 'Erreur lors de l\'envoi du message.');
+    }
   };
 
   return (
@@ -127,11 +140,11 @@ export function Home() {
           
           <form className="contact-form" onSubmit={handleContactSubmit}>
             <div className="form-row">
-              <input type="text" placeholder="Nom complet *" required />
-              <input type="email" placeholder="Email *" required />
+              <input type="text" name="nom" placeholder="Nom complet *" required />
+              <input type="email" name="email" placeholder="Email *" required />
             </div>
-            <input type="text" placeholder="Objet *" required />
-            <textarea rows={5} placeholder="Décrivez votre besoin…" required></textarea>
+            <input type="text" name="sujet" placeholder="Objet *" required />
+            <textarea name="message" rows={5} placeholder="Décrivez votre besoin…" required></textarea>
             <button type="submit" className="submit-btn">Envoyer ma demande</button>
           </form>
         </div>

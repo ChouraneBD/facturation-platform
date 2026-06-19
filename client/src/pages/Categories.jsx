@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Formik, Form } from 'formik';
 import * as Yup from 'yup';
-import { api } from '../services/api';
+import { categoriesService } from '../services/jsonService';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import { Panel, Field } from '../components/ui';
@@ -17,7 +17,7 @@ export function Categories() {
 
   const loadCategories = async () => {
     try {
-      const data = await api('/api/categories', { token: session.token });
+      const data = await categoriesService.list(session.token);
       setCategories(data);
     } catch (error) {
       notify('error', error.message);
@@ -35,14 +35,12 @@ export function Categories() {
 
   const handleSubmit = async (values, { setSubmitting, resetForm }) => {
     try {
-      await api(editingCategoryId ? `/api/categories/${editingCategoryId}` : '/api/categories', {
-        method: editingCategoryId ? 'PUT' : 'POST',
-        token: session.token,
-        body: {
-          nom: values.nom,
-          taux_tva: Number(values.taux_tva || 0)
-        }
-      });
+      const payload = { nom: values.nom, taux_tva: Number(values.taux_tva || 0) };
+      if (editingCategoryId) {
+        await categoriesService.update(editingCategoryId, payload, session.token);
+      } else {
+        await categoriesService.create(payload, session.token);
+      }
       notify('success', editingCategoryId ? 'Categorie mise à jour.' : 'Categorie créée.');
       setEditingCategoryId(null);
       resetForm();
@@ -70,7 +68,7 @@ export function Categories() {
   const deleteCategory = async (id) => {
     if (!window.confirm('Supprimer cette catégorie ?')) return;
     try {
-      await api(`/api/categories/${id}`, { method: 'DELETE', token: session.token });
+      await categoriesService.remove(id, session.token);
       notify('success', 'Catégorie supprimée.');
       loadCategories();
     } catch (error) {

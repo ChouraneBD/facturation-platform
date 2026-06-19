@@ -9,20 +9,12 @@ import {
   Banknote,
   Download
 } from 'lucide-react';
-import { api } from '../services/api';
+import { dashboardService, facturesService, loadAppSettings } from '../services/jsonService';
+import { formatMoney } from '../utils/formatMoney';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import { generatePdfBlob } from '../utils/pdfGenerator';
 import { Card, Panel, StatusPill, EmptyState, LoadingPanel, titleCase } from '../components/ui';
-
-const moneyFormatter = new Intl.NumberFormat('fr-FR', {
-  style: 'currency',
-  currency: 'EUR'
-});
-
-function formatMoney(value) {
-  return moneyFormatter.format(Number(value || 0));
-}
 
 function formatDate(value) {
   if (!value) return '—';
@@ -36,16 +28,21 @@ export function Dashboard() {
   const [factures, setFactures] = useState([]);
   const [loading, setLoading] = useState(true);
   const [downloadingId, setDownloadingId] = useState(null);
+  const [appSettings, setAppSettings] = useState({ devise: 'MAD' });
+
+  const displayMoney = (value) => formatMoney(value, appSettings.devise);
 
   useEffect(() => {
     const loadData = async () => {
       try {
-        const [dashboardData, facturesData] = await Promise.all([
-          api('/api/dashboard/metrics', { token: session.token }),
-          api('/api/factures', { token: session.token })
+        const [dashboardData, facturesData, settings] = await Promise.all([
+          dashboardService.metrics(session.token),
+          facturesService.list(session.token),
+          loadAppSettings(session.token)
         ]);
         setDashboard(dashboardData);
         setFactures(facturesData);
+        setAppSettings(settings);
       } catch (error) {
         console.error('Dashboard error:', error);
       } finally {
@@ -60,8 +57,16 @@ export function Dashboard() {
   const downloadFacturePdf = async (facture) => {
     setDownloadingId(facture.id);
     try {
-      const fullFacture = await api(`/api/factures/${facture.id}`, { token: session.token });
-      const blob = await generatePdfBlob(fullFacture);
+      const fullFacture = await facturesService.get(facture.id, session.token);
+      const blob = await generatePdfBlob(fullFacture, {
+        name: appSettings.societeNom,
+        tagline: appSettings.societeTagline,
+        address: appSettings.societeAdresse,
+        email: appSettings.societeEmail,
+        phone: appSettings.societeTelephone,
+        logoBase64: appSettings.logoBase64,
+        devise: appSettings.devise
+      });
       const objectUrl = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = objectUrl;
@@ -102,11 +107,11 @@ export function Dashboard() {
   const dashboardCards = dashboard
     ? [
         { title: 'Total factures', value: totals.factures, icon: FileText, tone: 'indigo' },
-        { title: 'Total encaissé', value: formatMoney(totals.total_encaisse), icon: Wallet, tone: 'green' },
+        { title: 'Total encaissé', value: displayMoney(totals.total_encaisse), icon: Wallet, tone: 'green' },
         { title: 'En attente', value: totals.factures_en_attente, icon: Clock, tone: 'amber' },
         { title: 'Rejetées', value: totals.factures_rejetees, icon: XCircle, tone: 'red' },
-        { title: 'Montant moyen', value: formatMoney(totals.montant_moyen), icon: TrendingUp, tone: 'cyan' },
-        { title: 'CA TTC', value: formatMoney(totals.total_ttc), icon: Banknote, tone: 'purple' }
+        { title: 'Montant moyen', value: displayMoney(totals.montant_moyen), icon: TrendingUp, tone: 'cyan' },
+        { title: 'CA TTC', value: displayMoney(totals.total_ttc), icon: Banknote, tone: 'purple' }
       ]
     : [];
 
@@ -146,7 +151,7 @@ export function Dashboard() {
                 <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                 <XAxis dataKey="month" tick={{ fontSize: 12 }} />
                 <YAxis tick={{ fontSize: 12 }} />
-                <Tooltip formatter={(value) => formatMoney(value)} />
+                <Tooltip formatter={(value) => displayMoney(value)} />
                 <Legend />
                 <Line type="monotone" dataKey="montant" stroke="#4f46e5" strokeWidth={2} name="Revenus TTC" dot={{ r: 4 }} />
               </LineChart>
@@ -179,7 +184,7 @@ export function Dashboard() {
                 <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                 <XAxis dataKey="month" tick={{ fontSize: 12 }} />
                 <YAxis tick={{ fontSize: 12 }} />
-                <Tooltip formatter={(value) => formatMoney(value)} />
+                <Tooltip formatter={(value) => displayMoney(value)} />
                 <Bar dataKey="montant" fill="#10b981" radius={[6, 6, 0, 0]} name="Encaissé" />
               </BarChart>
             </ResponsiveContainer>
@@ -207,7 +212,7 @@ export function Dashboard() {
                   <tr key={facture.id}>
                     <td><strong>{facture.numero}</strong></td>
                     <td>{facture.Client?.nom || '—'}</td>
-                    <td>{formatMoney(facture.total_ttc)}</td>
+                    <td>{displayMoney(facture.total_ttc)}</td>
                     <td><StatusPill value={facture.statut} /></td>
                     <td>{formatDate(facture.date_creation || facture.created_at)}</td>
                     <td>{facture.lignes_facture?.length || 0}</td>

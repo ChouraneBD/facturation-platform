@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useCart } from '../../contexts/CartContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
-import { api } from '../../services/api';
+import { clientsService, facturesService } from '../../services/jsonService';
 import { generatePdfBlob } from '../../utils/pdfGenerator';
 
 export function Checkout() {
@@ -30,27 +30,23 @@ export function Checkout() {
       // we need to ensure the user has an associated client record, or we map user to client.
       // For this SaaS logic, let's assume the user IS the client, or we create a dummy client if none exists.
       // Wait, the backend requires `client_id`. Let's fetch clients and pick the first one matching user email, or just create one.
-      let clients = await api('/api/clients', { token: session.token });
+      let clients = await clientsService.list(session.token);
       let client = clients.find(c => c.email === session.user.email);
       
       if (!client) {
-        // Create client profile for the user
-        client = await api('/api/clients', {
-          method: 'POST',
-          token: session.token,
-          body: {
-            nom: session.user.nom || session.user.email.split('@')[0],
-            email: session.user.email,
-            tel: '0000000000',
-            ville: 'Non renseignée',
-            adresse: 'Non renseignée'
-          }
-        });
+        const createdClient = await clientsService.create({
+          nom: session.user.nom || session.user.email.split('@')[0],
+          email: session.user.email,
+          tel: '0000000000',
+          ville: 'Non renseignée',
+          adresse: 'Non renseignée'
+        }, session.token);
+        client = createdClient.client || createdClient;
       }
 
       const payload = {
         client_id: client.id,
-        methode_calcul: 1, // Standard method
+        methode_calcul: 1,
         remise_globale_pct: 0,
         lignes: cart.map(item => ({
           article_id: item.id,
@@ -62,15 +58,10 @@ export function Checkout() {
         }))
       };
 
-      // 2. Submit to backend
-      const response = await api('/api/factures', {
-        method: 'POST',
-        token: session.token,
-        body: payload
-      });
+      const response = await facturesService.create(payload, session.token);
 
       const created = response.facture || response;
-      const fullFacture = await api(`/api/factures/${created.id}`, { token: session.token });
+      const fullFacture = await facturesService.get(created.id, session.token);
       
       try {
         const blob = await generatePdfBlob(fullFacture);
