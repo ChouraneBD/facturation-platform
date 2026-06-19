@@ -6,7 +6,17 @@ const Article = require('../models/Article');
 const LigneFacture = require('../models/LigneFacture');
 const User = require('../models/User');
 
-const buildDateFilter = (from, to) => {
+const buildDateFilter = (from, to, annee) => {
+    if (annee) {
+        const year = Number(annee);
+        return {
+            created_at: {
+                [Op.gte]: new Date(`${year}-01-01`),
+                [Op.lte]: new Date(`${year}-12-31T23:59:59`)
+            }
+        };
+    }
+
     if (!from && !to) {
         return {};
     }
@@ -26,8 +36,8 @@ const buildDateFilter = (from, to) => {
 
 const getMetrics = async (req, res) => {
     try {
-        const { from, to } = req.query;
-        const whereClause = buildDateFilter(from, to);
+        const { from, to, annee } = req.query;
+        const whereClause = buildDateFilter(from, to, annee);
 
         const [totalFactures, totalClients, totalArticles, totalHT, totalTVA, totalTTC, statusRows, recentFactures] = await Promise.all([
             Facture.count({ where: whereClause }),
@@ -86,7 +96,7 @@ const getMetrics = async (req, res) => {
         const montantMoyen = totalFactures > 0 ? Number(totalTTC || 0) / totalFactures : 0;
 
         return res.status(200).json({
-            filters: { from: from || null, to: to || null },
+            filters: { from: from || null, to: to || null, annee: annee ? Number(annee) : null },
             totals: {
                 factures: totalFactures,
                 clients: totalClients,

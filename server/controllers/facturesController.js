@@ -12,6 +12,7 @@ const {
     notifyInvoicePaid,
     summarizeEmailResults
 } = require('../services/emailService');
+const { ALERT_TYPES, notifyAdmins, notifyUser } = require('../services/alertService');
 
 const roundMoney = (value) => Number(Number(value || 0).toFixed(2));
 
@@ -124,24 +125,25 @@ const filterFactures = (factures, query = {}) => {
     const status = String(query.statut || '').trim().toLowerCase();
     const from = query.from ? new Date(query.from) : null;
     const to = query.to ? new Date(query.to) : null;
+    const annee = query.annee ? Number(query.annee) : null;
 
     return factures.filter((facture) => {
         if (status && facture.statut !== status) {
             return false;
         }
 
-        if (from) {
-            const created = new Date(facture.date_creation || facture.created_at);
-            if (created < from) {
-                return false;
-            }
+        const created = new Date(facture.date_creation || facture.created_at);
+
+        if (annee && created.getFullYear() !== annee) {
+            return false;
         }
 
-        if (to) {
-            const created = new Date(facture.date_creation || facture.created_at);
-            if (created > to) {
-                return false;
-            }
+        if (from && created < from) {
+            return false;
+        }
+
+        if (to && created > to) {
+            return false;
         }
 
         if (!search) {
@@ -284,6 +286,22 @@ const createFacture = async (req, res) => {
                 ? 'Facture créée. Aucune notification envoyée (email client ou admin manquant).'
                 : 'Facture créée, mais l\'envoi des notifications email a échoué.';
 
+        try {
+            await notifyAdmins(
+                ALERT_TYPES.CREATED,
+                `Nouvelle facture ${createdFacture.numero} en attente de validation.`,
+                createdFacture.numero
+            );
+            await notifyUser(
+                req.user.id,
+                ALERT_TYPES.CREATED,
+                `Votre facture ${createdFacture.numero} a été créée et est en attente.`,
+                createdFacture.numero
+            );
+        } catch (alertError) {
+            console.warn('Create facture alert error:', alertError.message);
+        }
+
         return res.status(201).json({
             message,
             facture: createdFacture,
@@ -372,6 +390,17 @@ const updateStatus = async (req, res) => {
 
         if (statut === 'payee' && previousStatus !== 'payee') {
             try {
+                await notifyUser(
+                    facture.user_id,
+                    ALERT_TYPES.PAID,
+                    `La facture ${updatedFacture.numero} a été marquée comme payée.`,
+                    updatedFacture.numero
+                );
+            } catch (alertError) {
+                console.warn('Paid alert error:', alertError.message);
+            }
+
+            try {
                 const emailResult = await notifyInvoicePaid(updatedFacture);
                 const emailSummary = summarizeEmailResults(emailResult);
                 return res.status(200).json({
@@ -427,8 +456,20 @@ const validateInvoice = async (req, res) => {
             let emailResult;
             if (statut === 'validee') {
                 emailResult = await notifyInvoiceValidated(updatedFacture, { pdfBase64, commentaire_admin });
+                await notifyUser(
+                    updatedFacture.user_id,
+                    ALERT_TYPES.VALIDATED,
+                    `Votre facture ${updatedFacture.numero} a été validée.`,
+                    updatedFacture.numero
+                );
             } else {
                 emailResult = await notifyInvoiceRejected(updatedFacture, { commentaire_admin });
+                await notifyUser(
+                    updatedFacture.user_id,
+                    ALERT_TYPES.REJECTED,
+                    `Votre facture ${updatedFacture.numero} a été rejetée.`,
+                    updatedFacture.numero
+                );
             }
 
             const emailSummary = summarizeEmailResults(emailResult);
