@@ -1,4 +1,5 @@
-import { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useState } from 'react';
+import { Alert, Snackbar } from '@mui/material';
 
 const ToastContext = createContext(null);
 
@@ -7,18 +8,25 @@ export function ToastProvider({ children }) {
 
   const notify = (type, text) => {
     setNotice({ type, text });
-    window.clearTimeout(window.__facturationNoticeTimer);
-    window.__facturationNoticeTimer = window.setTimeout(() => setNotice(null), 4500);
   };
+
+  const handleClose = () => setNotice(null);
 
   return (
     <ToastContext.Provider value={{ notice, notify }}>
       {children}
-      {notice ? (
-        <div className={`toast toast-${notice.type}`}>
-          {notice.text}
-        </div>
-      ) : null}
+      <Snackbar
+        open={Boolean(notice)}
+        autoHideDuration={4500}
+        onClose={handleClose}
+        anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+      >
+        {notice ? (
+          <Alert onClose={handleClose} severity={notice.type === 'warning' ? 'warning' : notice.type} variant="filled" sx={{ width: '100%' }}>
+            {notice.text}
+          </Alert>
+        ) : null}
+      </Snackbar>
     </ToastContext.Provider>
   );
 }

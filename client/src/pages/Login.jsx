@@ -4,8 +4,18 @@ import { Formik, Form } from 'formik';
 import * as Yup from 'yup';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
-import { api } from '../services/api';
-import { Field } from '../components/ui';
+import { authService } from '../services/jsonService';
+import {
+  Box,
+  Button,
+  Card,
+  CardContent,
+  Stack,
+  Tab,
+  Tabs,
+  TextField,
+  Typography
+} from '@mui/material';
 
 export function Login() {
   const [authMode, setAuthMode] = useState('login');
@@ -30,8 +40,6 @@ export function Login() {
   });
 
   const handleSubmit = async (values, { setSubmitting }) => {
-    const endpoint = authMode === 'login' ? '/api/auth/login' : '/api/auth/register';
-
     try {
       const payload = { ...values, role: 'user' };
       if (authMode === 'login') {
@@ -39,10 +47,9 @@ export function Login() {
         delete payload.role;
       }
 
-      const result = await api(endpoint, {
-        method: 'POST',
-        body: payload
-      });
+      const result = authMode === 'login'
+        ? await authService.login(payload)
+        : await authService.register(payload);
 
       login(result);
       notify('success', result.message || 'Connexion réussie.');
@@ -55,82 +62,95 @@ export function Login() {
   };
 
   return (
-    <main className="auth-shell">
-      <section className="brand-panel card">
-        <div className="eyebrow">Facturation Platform</div>
-        <h1>Gestion de facturation professionnelle</h1>
-        <p>
-          Factures, clients, catalogue, signature numérique et notifications par email — plateforme PFA EMSI Casablanca.
-        </p>
-        <div className="brand-metrics">
-          <div>
-            <strong>PostgreSQL</strong>
-            <span>Base SQL relationnelle</span>
-          </div>
-          <div>
-            <strong>Email</strong>
-            <span>Notifications automatiques</span>
-          </div>
-        </div>
-      </section>
+    <Box sx={{ minHeight: '100vh', display: 'grid', gridTemplateColumns: { md: '1.1fr 1fr' }, gap: 3, p: { xs: 2, md: 4 }, alignItems: 'center' }}>
+      <Card sx={{ bgcolor: 'primary.main', color: 'primary.contrastText', height: '100%' }}>
+        <CardContent sx={{ p: 4 }}>
+          <Typography variant="overline" sx={{ opacity: 0.9 }}>Facturation Platform</Typography>
+          <Typography variant="h4" fontWeight={700} sx={{ mt: 1, mb: 2 }}>
+            Gestion de facturation professionnelle
+          </Typography>
+          <Typography sx={{ opacity: 0.95, mb: 3 }}>
+            Factures, clients, catalogue, signature numérique et alertes workflow — conforme au cahier des charges PFA EMSI.
+          </Typography>
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+            <Box>
+              <Typography fontWeight={700}>jsonService.js</Typography>
+              <Typography variant="body2" sx={{ opacity: 0.9 }}>CRUD via API REST</Typography>
+            </Box>
+            <Box>
+              <Typography fontWeight={700}>firebaseService.js</Typography>
+              <Typography variant="body2" sx={{ opacity: 0.9 }}>Alertes workflow temps réel</Typography>
+            </Box>
+          </Stack>
+        </CardContent>
+      </Card>
 
-      <section className="card auth-panel">
-        <div className="tabs auth-tabs">
-          <button className={authMode === 'login' ? 'tab active' : 'tab'} onClick={() => setAuthMode('login')}>Connexion</button>
-          <button className={authMode === 'register' ? 'tab active' : 'tab'} onClick={() => setAuthMode('register')}>Inscription</button>
-        </div>
+      <Card>
+        <CardContent sx={{ p: 4 }}>
+          <Tabs value={authMode} onChange={(_, value) => setAuthMode(value)} sx={{ mb: 3 }}>
+            <Tab value="login" label="Connexion" />
+            <Tab value="register" label="Inscription" />
+          </Tabs>
 
-        <Formik
-          initialValues={initialValues}
-          validationSchema={validationSchema}
-          onSubmit={handleSubmit}
-          enableReinitialize
-        >
-          {({ values, handleChange, handleBlur, isSubmitting, errors, touched }) => (
-            <Form className="form-stack">
-              {authMode === 'register' ? (
-                <Field label="Nom complet" error={touched.nom && errors.nom}>
-                  <input
-                    name="nom"
-                    value={values.nom}
+          <Formik
+            initialValues={initialValues}
+            validationSchema={validationSchema}
+            onSubmit={handleSubmit}
+            enableReinitialize
+          >
+            {({ values, handleChange, handleBlur, isSubmitting, errors, touched }) => (
+              <Form>
+                <Stack spacing={2}>
+                  {authMode === 'register' ? (
+                    <TextField
+                      name="nom"
+                      label="Nom complet"
+                      value={values.nom}
+                      onChange={handleChange}
+                      onBlur={handleBlur}
+                      error={Boolean(touched.nom && errors.nom)}
+                      helperText={touched.nom && errors.nom}
+                      fullWidth
+                    />
+                  ) : null}
+
+                  <TextField
+                    type="email"
+                    name="email"
+                    label="Email"
+                    value={values.email}
                     onChange={handleChange}
                     onBlur={handleBlur}
-                    placeholder="Nom"
+                    error={Boolean(touched.email && errors.email)}
+                    helperText={touched.email && errors.email}
+                    fullWidth
                   />
-                </Field>
-              ) : null}
 
-              <Field label="Email" error={touched.email && errors.email}>
-                <input
-                  type="email"
-                  name="email"
-                  value={values.email}
-                  onChange={handleChange}
-                  onBlur={handleBlur}
-                  placeholder="admin@company.com"
-                />
-              </Field>
+                  <TextField
+                    type="password"
+                    name="mot_de_passe"
+                    label="Mot de passe"
+                    value={values.mot_de_passe}
+                    onChange={handleChange}
+                    onBlur={handleBlur}
+                    error={Boolean(touched.mot_de_passe && errors.mot_de_passe)}
+                    helperText={touched.mot_de_passe && errors.mot_de_passe}
+                    fullWidth
+                  />
 
-              <Field label="Mot de passe" error={touched.mot_de_passe && errors.mot_de_passe}>
-                <input
-                  type="password"
-                  name="mot_de_passe"
-                  value={values.mot_de_passe}
-                  onChange={handleChange}
-                  onBlur={handleBlur}
-                  placeholder="••••••••"
-                />
-              </Field>
+                  <Button type="submit" variant="contained" size="large" disabled={isSubmitting}>
+                    {isSubmitting ? 'Chargement...' : authMode === 'login' ? 'Se connecter' : 'Créer le compte'}
+                  </Button>
+                </Stack>
+              </Form>
+            )}
+          </Formik>
 
-              <button className="btn" type="submit" disabled={isSubmitting}>
-                {isSubmitting ? 'Chargement...' : authMode === 'login' ? 'Se connecter' : 'Creer le compte'}
-              </button>
-            </Form>
-          )}
-        </Formik>
-
-        <p className="muted auth-footnote">Comptes admin créés par l'équipe. Notifications envoyées par email à chaque étape.</p>
-      </section>
-    </main>
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
+            Comptes admin créés par l'équipe. Notifications et alertes à chaque étape du workflow.
+          </Typography>
+        </CardContent>
+      </Card>
+    </Box>
   );
 }
