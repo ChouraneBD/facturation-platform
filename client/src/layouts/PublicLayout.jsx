@@ -2,20 +2,16 @@ import { Outlet, Link } from 'react-router-dom';
 import { ShoppingCart, LayoutDashboard } from 'lucide-react';
 import { useCart } from '../contexts/CartContext';
 import { useAuth } from '../contexts/AuthContext';
-import { useToast } from '../contexts/ToastContext';
 import { AppLogo } from '../components/AppLogo';
 import { APP_NAME } from '../config/branding';
 
 export function PublicLayout() {
-  const { notice } = useToast();
   const { cart } = useCart();
   const { isAuthenticated } = useAuth();
   const cartCount = cart.reduce((acc, item) => acc + item.quantity, 0);
 
   return (
     <div className="public-shell">
-      {notice && <div className={`toast toast-${notice.type}`}>{notice.text}</div>}
-      
       <header className="public-header">
         <div className="public-top-bar">Solutions IT sur-mesure — Casablanca &amp; Grand Maroc</div>
         <div className="container public-nav-wrapper">
