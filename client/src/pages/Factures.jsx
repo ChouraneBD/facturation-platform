@@ -10,8 +10,9 @@ import { exportFacturesToExcel } from '../utils/excelExport';
 import { formatMoney } from '../utils/formatMoney';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
-import { Panel, Field, StatusPill, EmptyState, titleCase, blobToBase64 } from '../components/ui';
+import { Panel, Field, StatusPill, EmptyState, PageHeader, titleCase, blobToBase64 } from '../components/ui';
 import { SignaturePad } from '../components/SignaturePad';
+import { WorkflowStepper } from '../components/WorkflowStepper';
 import { Download, Mail } from 'lucide-react';
 
 function normalizeText(value) {
@@ -196,7 +197,13 @@ export function Factures() {
   };
 
   return (
-    <div className="split-layout">
+    <>
+      <PageHeader
+        title="Gestion des factures"
+        subtitle="Création avec signature numérique, workflow de validation et export PDF / Excel."
+      />
+
+      <div className="split-layout">
       {session.user?.role !== 'admin' && (
         <Panel title="Nouvelle facture" subtitle="Création, signature et notification email automatique.">
           <Formik
@@ -382,6 +389,8 @@ export function Factures() {
                 ) : null}
               </div>
 
+              <WorkflowStepper statut={facture.statut} compact />
+
               <div className="invoice-item-editor">
                 <Editor 
                   facture={facture} 
@@ -399,7 +408,8 @@ export function Factures() {
           <button className="btn btn-small" disabled={facturePage >= factureTotalPages} onClick={() => setFacturePage(p => p + 1)}>Suivant</button>
         </div>
       </Panel>
-    </div>
+      </div>
+    </>
   );
 }
 

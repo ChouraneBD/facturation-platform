@@ -14,7 +14,9 @@ import { Clients } from './pages/Clients';
 import { Categories } from './pages/Categories';
 import { Articles } from './pages/Articles';
 import { Factures } from './pages/Factures';
+import { Paiements } from './pages/Paiements';
 import { Parametres } from './pages/Parametres';
+import { Verify } from './pages/public/Verify';
 
 function ProtectedRoute({ children }) {
   const { isAuthenticated } = useAuth();
@@ -37,6 +39,7 @@ const router = createBrowserRouter([
     children: [
       { index: true, element: <Home /> },
       { path: 'cart', element: <Cart /> },
+      { path: 'verify/:numero', element: <Verify /> },
       {
         path: 'checkout',
         element: (
@@ -84,6 +87,7 @@ const router = createBrowserRouter([
         )
       },
       { path: 'factures', element: <Factures /> },
+      { path: 'paiements', element: <Paiements /> },
       {
         path: 'parametres',
         element: (

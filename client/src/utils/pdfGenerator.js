@@ -3,15 +3,36 @@ import autoTable from 'jspdf-autotable';
 import QRCode from 'qrcode';
 import { formatMoney as formatCurrency } from './formatMoney';
 
+import { APP_LOGO_SRC, APP_NAME, APP_TAGLINE } from '../config/branding';
+
 const DEFAULT_COMPANY = {
-  name: 'TechPro Services',
-  tagline: 'EMSI Casablanca — Facturation Platform',
+  name: APP_NAME,
+  tagline: APP_TAGLINE,
   address: '123 Avenue des Technologies, Casablanca',
-  email: 'contact@techpro-services.ma',
+  email: 'contact@factora.ma',
   phone: '+212 5 22 00 00 00',
   devise: 'MAD',
   logoBase64: ''
 };
+
+let cachedLogoBase64 = null;
+
+async function loadDefaultLogoBase64() {
+  if (cachedLogoBase64 !== null) return cachedLogoBase64;
+  try {
+    const response = await fetch(APP_LOGO_SRC);
+    const blob = await response.blob();
+    cachedLogoBase64 = await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+  } catch {
+    cachedLogoBase64 = '';
+  }
+  return cachedLogoBase64;
+}
 
 function formatPdfDate(value) {
   if (!value) return '—';
@@ -20,6 +41,9 @@ function formatPdfDate(value) {
 
 export const generatePdfBlob = async (facture, settings = {}) => {
   const company = { ...DEFAULT_COMPANY, ...settings };
+  if (!company.logoBase64) {
+    company.logoBase64 = await loadDefaultLogoBase64();
+  }
   const devise = company.devise || 'MAD';
 
   const doc = new jsPDF({
@@ -31,7 +55,7 @@ export const generatePdfBlob = async (facture, settings = {}) => {
   const qrPayload = JSON.stringify({
     numero: facture.numero,
     total_ttc: Number(facture.total_ttc || 0),
-    verification: `${window.location.origin}/dashboard/factures`
+    verification: `${window.location.origin}/verify/${encodeURIComponent(facture.numero)}`
   });
 
   const qrImage = await QRCode.toDataURL(qrPayload, { margin: 1, width: 120 });

@@ -14,7 +14,7 @@ import { formatMoney } from '../utils/formatMoney';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import { generatePdfBlob } from '../utils/pdfGenerator';
-import { Card, Panel, StatusPill, EmptyState, LoadingPanel, titleCase } from '../components/ui';
+import { Card, Panel, StatusPill, EmptyState, LoadingPanel, PageHeader, titleCase } from '../components/ui';
 
 function formatDate(value) {
   if (!value) return '—';
@@ -44,7 +44,7 @@ export function Dashboard() {
         setFactures(facturesData);
         setAppSettings(settings);
       } catch (error) {
-        console.error('Dashboard error:', error);
+        notify('error', error.message || 'Erreur lors du chargement du tableau de bord.');
       } finally {
         setLoading(false);
       }
@@ -137,6 +137,11 @@ export function Dashboard() {
 
   return (
     <>
+      <PageHeader
+        title="Tableau de bord analytique"
+        subtitle="Indicateurs clés, chiffre d'affaires, encaissements et factures récentes."
+      />
+
       <section className="stats-grid stats-grid-6">
         {dashboardCards.map((card) => (
           <Card key={card.title} {...card} note="Temps réel" />

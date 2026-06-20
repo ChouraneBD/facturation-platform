@@ -2,6 +2,7 @@
  * jsonService.js — couche CRUD via l'API Express + PostgreSQL.
  */
 import { api } from './api';
+import { APP_NAME } from '../config/branding';
 
 function withToken(token) {
   return token ? { token } : {};
@@ -48,6 +49,7 @@ export const facturesService = {
     return api(`/api/factures${qs ? `?${qs}` : ''}`, withToken(token));
   },
   get: (id, token) => api(`/api/factures/${id}`, withToken(token)),
+  verify: (numero) => api(`/api/factures/verify/${encodeURIComponent(numero)}`),
   create: (payload, token) => api('/api/factures', { method: 'POST', body: payload, ...withToken(token) }),
   updateStatus: (id, payload, token) => api(`/api/factures/${id}/statut`, { method: 'PATCH', body: payload, ...withToken(token) }),
   validate: (id, payload, token) => api(`/api/factures/${id}/validation`, { method: 'PATCH', body: payload, ...withToken(token) }),
@@ -79,7 +81,7 @@ export async function loadAppSettings(token) {
   const parametres = await parametresService.list(token);
   const map = Object.fromEntries(parametres.map((p) => [p.cle, p.valeur]));
   return {
-    societeNom: map.societe_nom || 'TechPro Services',
+    societeNom: map.societe_nom || APP_NAME,
     societeAdresse: map.societe_adresse || '',
     societeEmail: map.societe_email || '',
     societeTelephone: map.societe_telephone || '',
