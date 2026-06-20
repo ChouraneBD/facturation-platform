@@ -2,10 +2,8 @@ import { useState, useEffect } from 'react';
 import { Outlet, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import {
   AppBar,
-  Badge,
   Box,
   Button,
-  Chip,
   Container,
   Drawer,
   IconButton,
@@ -13,7 +11,6 @@ import {
   ListItemButton,
   ListItemIcon,
   ListItemText,
-  Paper,
   Stack,
   Tab,
   Tabs,
@@ -31,13 +28,12 @@ import PaymentsIcon from '@mui/icons-material/Payments';
 import SettingsIcon from '@mui/icons-material/Settings';
 import LogoutIcon from '@mui/icons-material/Logout';
 import PublicIcon from '@mui/icons-material/Public';
-import EmailOutlinedIcon from '@mui/icons-material/EmailOutlined';
-import NotificationsNoneIcon from '@mui/icons-material/NotificationsNone';
 import MenuIcon from '@mui/icons-material/Menu';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import { subscribeToAlerts, markAlertAsRead } from '../services/firebaseService';
 import { AppLogo } from '../components/AppLogo';
+import { NotificationMenu } from '../components/NotificationMenu';
 import { APP_NAME, APP_TAGLINE } from '../config/branding';
 
 const tabs = [
@@ -72,11 +68,9 @@ export function DashboardLayout() {
   const isAdmin = session?.user?.role === 'admin';
   const [mobileOpen, setMobileOpen] = useState(false);
   const [alerts, setAlerts] = useState([]);
-  const [showAlerts, setShowAlerts] = useState(false);
 
   const visibleTabs = tabs.filter((tab) => !tab.adminOnly || isAdmin);
   const activeTab = resolveActiveTab(location.pathname, visibleTabs);
-  const unreadCount = alerts.filter((a) => !a.lu).length;
 
   useEffect(() => {
     if (!session?.token) return undefined;
@@ -92,6 +86,19 @@ export function DashboardLayout() {
     try {
       await markAlertAsRead(alert.id, session.token);
       setAlerts((prev) => prev.map((a) => (a.id === alert.id ? { ...a, lu: true } : a)));
+    } catch (error) {
+      notify('error', error.message);
+    }
+  };
+
+  const handleMarkAllRead = async () => {
+    const unread = alerts.filter((a) => !a.lu);
+    if (unread.length === 0) return;
+
+    try {
+      await Promise.all(unread.map((alert) => markAlertAsRead(alert.id, session.token)));
+      setAlerts((prev) => prev.map((a) => ({ ...a, lu: true })));
+      notify('success', 'Toutes les notifications ont été marquées comme lues.');
     } catch (error) {
       notify('error', error.message);
     }
@@ -151,12 +158,12 @@ export function DashboardLayout() {
           </Box>
 
           <Stack direction="row" spacing={1} alignItems="center">
-            <Chip icon={<EmailOutlinedIcon />} label="Email" size="small" variant="outlined" />
-            <IconButton onClick={() => setShowAlerts((v) => !v)} title="Alertes workflow">
-              <Badge badgeContent={unreadCount} color="error">
-                <NotificationsNoneIcon />
-              </Badge>
-            </IconButton>
+            <NotificationMenu
+              alerts={alerts}
+              onMarkRead={handleMarkRead}
+              onMarkAllRead={handleMarkAllRead}
+              onViewFactures={() => navigate('/dashboard/factures')}
+            />
             <Button startIcon={<PublicIcon />} variant="outlined" size="small" onClick={() => navigate('/')}>
               Site
             </Button>
@@ -185,39 +192,6 @@ export function DashboardLayout() {
           </Tabs>
         ) : null}
       </AppBar>
-
-      {showAlerts ? (
-        <Paper sx={{ mx: { xs: 2, md: 3 }, mt: 2, p: 2, maxHeight: 280, overflow: 'auto' }} elevation={1}>
-          <Typography variant="subtitle1" fontWeight={700} gutterBottom>
-            Alertes workflow
-          </Typography>
-          {alerts.length === 0 ? (
-            <Typography variant="body2" color="text.secondary">Aucune alerte pour le moment.</Typography>
-          ) : (
-            alerts.slice(0, 8).map((alert) => (
-              <Box
-                key={alert.id}
-                sx={{
-                  py: 1,
-                  borderBottom: '1px solid',
-                  borderColor: 'divider',
-                  opacity: alert.lu ? 0.65 : 1
-                }}
-              >
-                <Typography variant="body2">{alert.message}</Typography>
-                <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mt: 0.5 }}>
-                  <Typography variant="caption" color="text.secondary">
-                    {alert.facture_numero || alert.type}
-                  </Typography>
-                  {!alert.lu ? (
-                    <Button size="small" onClick={() => handleMarkRead(alert)}>Marquer lu</Button>
-                  ) : null}
-                </Stack>
-              </Box>
-            ))
-          )}
-        </Paper>
-      ) : null}
 
       <Drawer open={mobileOpen} onClose={() => setMobileOpen(false)}>
         <Box sx={{ width: 260, pt: 2 }}>{navContent}</Box>
