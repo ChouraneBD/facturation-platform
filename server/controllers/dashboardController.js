@@ -4,6 +4,7 @@ const Client = require('../models/Client');
 const LigneFacture = require('../models/LigneFacture');
 const User = require('../models/User');
 const Article = require('../models/Article');
+const { factureScopeWhere } = require('../utils/accessScope');
 
 const buildDateFilter = (from, to, annee) => {
   if (annee) {
@@ -36,7 +37,8 @@ const buildDateFilter = (from, to, annee) => {
 const getMetrics = async (req, res) => {
   try {
     const { from, to, annee } = req.query;
-    const whereClause = buildDateFilter(from, to, annee);
+    const scopeWhere = factureScopeWhere(req.user);
+    const whereClause = { ...scopeWhere, ...buildDateFilter(from, to, annee) };
 
     const [totalFactures, totalClients, totalArticles, totalHT, totalTVA, totalTTC, statusRows, recentFactures] = await Promise.all([
       Facture.count({ where: whereClause }),

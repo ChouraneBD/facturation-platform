@@ -13,6 +13,7 @@ const {
   summarizeEmailResults
 } = require('../services/emailService');
 const { ALERT_TYPES, notifyAdmins, notifyUser } = require('../services/alertService');
+const { canAccessFacture, factureScopeWhere } = require('../utils/accessScope');
 
 const roundMoney = (value) => Number(Number(value || 0).toFixed(2));
 
@@ -153,6 +154,7 @@ const filterFactures = (factures, query = {}) => {
 const listFactures = async (req, res) => {
   try {
     const factures = await Facture.findAll({
+      where: factureScopeWhere(req.user),
       include: buildFactureInclude(),
       order: [['created_at', 'DESC']]
     });
@@ -172,6 +174,10 @@ const getFacture = async (req, res) => {
 
     if (!facture) {
       return res.status(404).json({ message: 'Facture introuvable.' });
+    }
+
+    if (!canAccessFacture(req.user, facture)) {
+      return res.status(403).json({ message: 'Accès interdit à cette facture.' });
     }
 
     return res.status(200).json(facture);
@@ -355,6 +361,10 @@ const updateStatus = async (req, res) => {
       return res.status(404).json({ message: 'Facture introuvable.' });
     }
 
+    if (!canAccessFacture(req.user, facture)) {
+      return res.status(403).json({ message: 'Accès interdit à cette facture.' });
+    }
+
     const { statut, commentaire_admin, date_encaissement, type_virement } = req.body;
 
     if (!['en_attente', 'validee', 'rejetee', 'payee'].includes(statut)) {
@@ -512,6 +522,34 @@ const sendInvoiceEmail = async (req, res) => {
   }
 };
 
+const verifyFacture = async (req, res) => {
+  try {
+    const facture = await Facture.findOne({
+      where: { numero: req.params.numero },
+      include: [{ model: Client, attributes: ['nom'] }]
+    });
+
+    if (!facture) {
+      return res.status(404).json({ message: 'Facture introuvable.', verified: false });
+    }
+
+    return res.status(200).json({
+      verified: true,
+      numero: facture.numero,
+      statut: facture.statut,
+      total_ttc: Number(facture.total_ttc || 0),
+      total_ht: Number(facture.total_ht || 0),
+      tva: Number(facture.tva || 0),
+      date_creation: facture.date_creation || facture.created_at,
+      client_nom: facture.Client?.nom || null,
+      has_signature: Boolean(facture.signature_base64)
+    });
+  } catch (error) {
+    console.error('Verify facture error:', error);
+    return res.status(500).json({ message: 'Erreur serveur lors de la vérification.' });
+  }
+};
+
 module.exports = {
   listFactures,
   getFacture,
@@ -519,5 +557,6 @@ module.exports = {
   updateGlobalDiscount,
   updateStatus,
   validateInvoice,
-  sendInvoiceEmail
+  sendInvoiceEmail,
+  verifyFacture
 };

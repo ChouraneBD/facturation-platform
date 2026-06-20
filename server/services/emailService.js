@@ -12,11 +12,11 @@ function normalizeSmtpPassword(value) {
 function resolveFromAddress() {
     const smtpUser = process.env.SMTP_USER;
     if (smtpUser) {
-        const displayName = process.env.SMTP_FROM_NAME || 'TechPro Services';
+        const displayName = process.env.SMTP_FROM_NAME || 'Factora';
         return `"${displayName}" <${smtpUser}>`;
     }
 
-    return process.env.SMTP_FROM || 'no-reply@techpro-services.ma';
+    return process.env.SMTP_FROM || 'no-reply@factora.ma';
 }
 
 async function createTransporter() {
@@ -107,12 +107,12 @@ function buildHtmlLayout({ title, body, accent = '#4f46e5' }) {
     <tr><td align="center">
       <table width="600" cellpadding="0" cellspacing="0" style="background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.06);">
         <tr><td style="background:${accent};padding:24px 32px;">
-          <div style="color:#fff;font-size:13px;letter-spacing:0.12em;text-transform:uppercase;opacity:0.9;">TechPro Services</div>
+          <div style="color:#fff;font-size:13px;letter-spacing:0.12em;text-transform:uppercase;opacity:0.9;">Factora</div>
           <h1 style="margin:8px 0 0;color:#fff;font-size:22px;font-weight:700;">${title}</h1>
         </td></tr>
         <tr><td style="padding:32px;">${body}</td></tr>
         <tr><td style="padding:20px 32px;background:#f1f5f9;font-size:12px;color:#64748b;">
-          Facturation Platform — EMSI Casablanca PFA<br>
+          Factora — Gestion de facturation professionnelle<br>
           Cet email est une notification automatique.
         </td></tr>
       </table>
@@ -182,7 +182,7 @@ async function notifyInvoiceCreated(facture) {
 
     results.push(await sendMail({
         to: clientEmail,
-        subject: `[TechPro] Facture ${facture.numero} — en attente de validation`,
+        subject: `[Factora] Facture ${facture.numero} — en attente de validation`,
         text: `Bonjour ${clientName}, votre facture ${facture.numero} (${money(facture.total_ttc)} EUR TTC) est en attente de validation.`,
         html: clientHtml
     }));
@@ -243,7 +243,7 @@ async function notifyInvoiceValidated(facture, { pdfBase64, commentaire_admin } 
 
     return sendMail({
         to: clientEmail,
-        subject: `[TechPro] Facture ${facture.numero} validée`,
+        subject: `[Factora] Facture ${facture.numero} validée`,
         text: `Bonjour ${clientName}, votre facture ${facture.numero} a été validée. Montant TTC : ${money(facture.total_ttc)} EUR.`,
         html,
         attachments
@@ -267,7 +267,7 @@ async function notifyInvoiceRejected(facture, { commentaire_admin } = {}) {
 
     return sendMail({
         to: clientEmail,
-        subject: `[TechPro] Facture ${facture.numero} rejetée`,
+        subject: `[Factora] Facture ${facture.numero} rejetée`,
         text: `Bonjour ${clientName}, votre facture ${facture.numero} a été rejetée.${commentaire_admin ? ` Motif : ${commentaire_admin}` : ''}`,
         html
     });
@@ -294,7 +294,7 @@ async function notifyInvoicePaid(facture) {
 
     return sendMail({
         to: clientEmail,
-        subject: `[TechPro] Paiement reçu — Facture ${facture.numero}`,
+        subject: `[Factora] Paiement reçu — Facture ${facture.numero}`,
         text: `Bonjour ${clientName}, le paiement de la facture ${facture.numero} (${money(facture.total_ttc)} EUR) a été enregistré.`,
         html
     });

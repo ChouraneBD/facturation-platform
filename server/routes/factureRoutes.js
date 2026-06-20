@@ -7,10 +7,13 @@ const {
     updateGlobalDiscount,
     updateStatus,
     validateInvoice,
-    sendInvoiceEmail
+    sendInvoiceEmail,
+    verifyFacture
 } = require('../controllers/facturesController');
 
 const router = express.Router();
+
+router.get('/verify/:numero', verifyFacture);
 
 router.use(protect);
 
