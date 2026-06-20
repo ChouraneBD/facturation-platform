@@ -1,22 +1,10 @@
 /**
- * jsonService.js — couche CRUD via JSON Server (cahier des charges PFA).
- * Articles, catégories et paramètres → JSON Server.
- * Clients, factures, auth, dashboard → Express + MongoDB.
+ * jsonService.js — couche CRUD via l'API Express + PostgreSQL.
  */
-import { api, jsonApi } from './api';
+import { api } from './api';
 
 function withToken(token) {
   return token ? { token } : {};
-}
-
-async function enrichArticlesWithCategories(articles, token) {
-  const categories = await jsonApi('/categories', withToken(token));
-  const categoryMap = Object.fromEntries(categories.map((category) => [category.id, category]));
-
-  return articles.map((article) => ({
-    ...article,
-    Category: categoryMap[article.categorie_id] || null
-  }));
 }
 
 export const authService = {
@@ -33,35 +21,19 @@ export const clientsService = {
 };
 
 export const categoriesService = {
-  list: (token) => jsonApi('/categories', withToken(token)),
-  get: (id, token) => jsonApi(`/categories/${id}`, withToken(token)),
-  create: (payload, token) => jsonApi('/categories', { method: 'POST', body: payload, ...withToken(token) }),
-  update: (id, payload, token) => jsonApi(`/categories/${id}`, { method: 'PUT', body: payload, ...withToken(token) }),
-  remove: (id, token) => jsonApi(`/categories/${id}`, { method: 'DELETE', ...withToken(token) })
+  list: (token) => api('/api/categories', withToken(token)),
+  get: (id, token) => api(`/api/categories/${id}`, withToken(token)),
+  create: (payload, token) => api('/api/categories', { method: 'POST', body: payload, ...withToken(token) }),
+  update: (id, payload, token) => api(`/api/categories/${id}`, { method: 'PUT', body: payload, ...withToken(token) }),
+  remove: (id, token) => api(`/api/categories/${id}`, { method: 'DELETE', ...withToken(token) })
 };
 
 export const articlesService = {
-  list: async (token) => {
-    const articles = await jsonApi('/articles', withToken(token));
-    if (!token) {
-      return articles;
-    }
-    return enrichArticlesWithCategories(articles, token);
-  },
-  get: async (id, token) => {
-    const article = await jsonApi(`/articles/${id}`, withToken(token));
-    if (article?.categorie_id && token) {
-      try {
-        article.Category = await categoriesService.get(article.categorie_id, token);
-      } catch {
-        article.Category = null;
-      }
-    }
-    return article;
-  },
-  create: (payload, token) => jsonApi('/articles', { method: 'POST', body: payload, ...withToken(token) }),
-  update: (id, payload, token) => jsonApi(`/articles/${id}`, { method: 'PUT', body: payload, ...withToken(token) }),
-  remove: (id, token) => jsonApi(`/articles/${id}`, { method: 'DELETE', ...withToken(token) })
+  list: (token) => api('/api/articles', withToken(token)),
+  get: (id, token) => api(`/api/articles/${id}`, withToken(token)),
+  create: (payload, token) => api('/api/articles', { method: 'POST', body: payload, ...withToken(token) }),
+  update: (id, payload, token) => api(`/api/articles/${id}`, { method: 'PUT', body: payload, ...withToken(token) }),
+  remove: (id, token) => api(`/api/articles/${id}`, { method: 'DELETE', ...withToken(token) })
 };
 
 export const facturesService = {
@@ -83,9 +55,9 @@ export const facturesService = {
 };
 
 export const parametresService = {
-  list: (token) => jsonApi('/parametres', withToken(token)),
-  get: (cle, token) => jsonApi(`/parametres/key/${cle}`, withToken(token)),
-  upsert: (payload, token) => jsonApi('/parametres/upsert', { method: 'PUT', body: payload, ...withToken(token) })
+  list: (token) => api('/api/parametres', withToken(token)),
+  get: (cle, token) => api(`/api/parametres/${cle}`, withToken(token)),
+  upsert: (payload, token) => api('/api/parametres', { method: 'PUT', body: payload, ...withToken(token) })
 };
 
 export const dashboardService = {

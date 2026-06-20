@@ -1,7 +1,10 @@
+const sequelize = require('../config/database');
 const Facture = require('../models/Facture');
+const LigneFacture = require('../models/LigneFacture');
 const Client = require('../models/Client');
-const { getArticle } = require('../services/jsonServerClient');
-const { formatFacture, facturePopulate } = require('../utils/factureFormatter');
+const User = require('../models/User');
+const Article = require('../models/Article');
+const Category = require('../models/Category');
 const {
   notifyInvoiceCreated,
   notifyInvoiceValidated,
@@ -23,13 +26,17 @@ const generateInvoiceNumber = async () => {
 
   do {
     invoiceNumber = `FAC-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`;
-  } while (await Facture.findOne({ numero: invoiceNumber }));
+  } while (await Facture.findOne({ where: { numero: invoiceNumber } }));
 
   return invoiceNumber;
 };
 
 const prepareLine = async (line) => {
-  const article = line.article_id ? await getArticle(line.article_id) : null;
+  const article = line.article_id
+    ? await Article.findByPk(line.article_id, {
+      include: [{ model: Category, attributes: ['id', 'nom', 'taux_tva'] }]
+    })
+    : null;
 
   const designationSnapshot = line.designation_snapshot || article?.designation;
   const quantite = Math.max(0, toNumber(line.quantite));
@@ -98,10 +105,12 @@ const calculateTotals = (preparedLines, methodeCalcul, remiseGlobalePct) => {
   };
 };
 
-async function loadFactureById(id) {
-  const facture = await Facture.findById(id).populate(facturePopulate);
-  return formatFacture(facture);
-}
+const buildFactureInclude = () => [
+  { model: Client },
+  { model: User, as: 'user' },
+  { model: User, as: 'validatedBy' },
+  { model: LigneFacture, as: 'lignes_facture' }
+];
 
 const filterFactures = (factures, query = {}) => {
   const search = String(query.search || '').trim().toLowerCase();
@@ -143,9 +152,12 @@ const filterFactures = (factures, query = {}) => {
 
 const listFactures = async (req, res) => {
   try {
-    const factures = await Facture.find().populate(facturePopulate).sort({ created_at: -1 });
-    const formatted = factures.map((facture) => formatFacture(facture));
-    return res.status(200).json(filterFactures(formatted, req.query));
+    const factures = await Facture.findAll({
+      include: buildFactureInclude(),
+      order: [['created_at', 'DESC']]
+    });
+
+    return res.status(200).json(filterFactures(factures, req.query));
   } catch (error) {
     console.error('List factures error:', error);
     return res.status(500).json({ message: 'Erreur serveur lors de la récupération des factures.' });
@@ -154,7 +166,9 @@ const listFactures = async (req, res) => {
 
 const getFacture = async (req, res) => {
   try {
-    const facture = await loadFactureById(req.params.id);
+    const facture = await Facture.findByPk(req.params.id, {
+      include: buildFactureInclude()
+    });
 
     if (!facture) {
       return res.status(404).json({ message: 'Facture introuvable.' });
@@ -168,6 +182,8 @@ const getFacture = async (req, res) => {
 };
 
 const createFacture = async (req, res) => {
+  const transaction = await sequelize.transaction();
+
   try {
     const {
       client_id,
@@ -183,19 +199,23 @@ const createFacture = async (req, res) => {
     } = req.body;
 
     if (!client_id) {
+      await transaction.rollback();
       return res.status(400).json({ message: 'client_id est obligatoire.' });
     }
 
-    const client = await Client.findById(client_id);
+    const client = await Client.findByPk(client_id);
     if (!client) {
+      await transaction.rollback();
       return res.status(400).json({ message: 'client_id invalide.' });
     }
 
     if (!Number.isInteger(Number(methode_calcul)) || Number(methode_calcul) < 1 || Number(methode_calcul) > 4) {
+      await transaction.rollback();
       return res.status(400).json({ message: 'methode_calcul doit être comprise entre 1 et 4.' });
     }
 
     if (!Array.isArray(lignes) || lignes.length === 0) {
+      await transaction.rollback();
       return res.status(400).json({ message: 'Au moins une ligne_facture est requise.' });
     }
 
@@ -220,20 +240,25 @@ const createFacture = async (req, res) => {
       signature_base64: signature_base64 || null,
       pdf_url: pdf_url || null,
       commentaire_admin: commentaire_admin || null,
-      client_id: client._id,
-      user_id: req.user.id,
-      lignes_facture: totals.lines.map((line) => ({
-        article_id: line.article_id,
-        designation_snapshot: line.designation_snapshot,
-        quantite: line.quantite,
-        prix_unitaire_applique: line.prix_unitaire_applique,
-        remise_pct: line.remise_pct,
-        tva_pct: line.tva_pct,
-        total_ligne: line.adjusted_total_ttc
-      }))
-    });
+      client_id,
+      user_id: req.user.id
+    }, { transaction });
 
-    const createdFacture = await loadFactureById(facture._id);
+    const lineRows = totals.lines.map((line) => ({
+      facture_id: facture.id,
+      article_id: line.article_id,
+      designation_snapshot: line.designation_snapshot,
+      quantite: line.quantite,
+      prix_unitaire_applique: line.prix_unitaire_applique,
+      remise_pct: line.remise_pct,
+      tva_pct: line.tva_pct,
+      total_ligne: line.adjusted_total_ttc
+    }));
+
+    await LigneFacture.bulkCreate(lineRows, { transaction });
+    await transaction.commit();
+
+    const createdFacture = await Facture.findByPk(facture.id, { include: buildFactureInclude() });
 
     let emailSummary = { emailSent: false, sentCount: 0, skippedCount: 0, failedCount: 0 };
     try {
@@ -272,6 +297,7 @@ const createFacture = async (req, res) => {
       ...emailSummary
     });
   } catch (error) {
+    await transaction.rollback();
     console.error('Create facture error:', error);
     return res.status(500).json({ message: error.message || 'Erreur serveur lors de la création de la facture.' });
   }
@@ -279,7 +305,9 @@ const createFacture = async (req, res) => {
 
 const updateGlobalDiscount = async (req, res) => {
   try {
-    const facture = await Facture.findById(req.params.id);
+    const facture = await Facture.findByPk(req.params.id, {
+      include: [{ model: LigneFacture, as: 'lignes_facture' }]
+    });
 
     if (!facture) {
       return res.status(404).json({ message: 'Facture introuvable.' });
@@ -302,15 +330,16 @@ const updateGlobalDiscount = async (req, res) => {
 
     const totals = calculateTotals(preparedLines, Number(facture.methode_calcul), remiseGlobalePct);
 
-    facture.remise_globale_pct = remiseGlobalePct;
-    facture.total_ht = totals.total_ht;
-    facture.tva = totals.tva;
-    facture.total_ttc = totals.total_ttc;
-    await facture.save();
+    await facture.update({
+      remise_globale_pct: remiseGlobalePct,
+      total_ht: totals.total_ht,
+      tva: totals.tva,
+      total_ttc: totals.total_ttc
+    });
 
     return res.status(200).json({
       message: 'Remise globale mise à jour avec succès.',
-      facture: await loadFactureById(facture._id)
+      facture: await Facture.findByPk(facture.id, { include: buildFactureInclude() })
     });
   } catch (error) {
     console.error('Update global discount error:', error);
@@ -320,7 +349,7 @@ const updateGlobalDiscount = async (req, res) => {
 
 const updateStatus = async (req, res) => {
   try {
-    const facture = await Facture.findById(req.params.id);
+    const facture = await Facture.findByPk(req.params.id);
 
     if (!facture) {
       return res.status(404).json({ message: 'Facture introuvable.' });
@@ -334,20 +363,21 @@ const updateStatus = async (req, res) => {
 
     const previousStatus = facture.statut;
 
-    facture.statut = statut;
-    facture.commentaire_admin = commentaire_admin ?? facture.commentaire_admin;
-    facture.date_encaissement = date_encaissement ?? facture.date_encaissement;
-    facture.type_virement = type_virement ?? facture.type_virement;
-    facture.validated_by = facture.validated_by || req.user.id;
-    facture.validated_at = facture.validated_at || new Date();
-    await facture.save();
+    await facture.update({
+      statut,
+      commentaire_admin: commentaire_admin ?? facture.commentaire_admin,
+      date_encaissement: date_encaissement ?? facture.date_encaissement,
+      type_virement: type_virement ?? facture.type_virement,
+      validated_by: facture.validated_by || req.user.id,
+      validated_at: facture.validated_at || new Date()
+    });
 
-    const updatedFacture = await loadFactureById(facture._id);
+    const updatedFacture = await Facture.findByPk(facture.id, { include: buildFactureInclude() });
 
     if (statut === 'payee' && previousStatus !== 'payee') {
       try {
         await notifyUser(
-          updatedFacture.user_id,
+          facture.user_id,
           ALERT_TYPES.PAID,
           `La facture ${updatedFacture.numero} a été marquée comme payée.`,
           updatedFacture.numero
@@ -388,7 +418,7 @@ const updateStatus = async (req, res) => {
 
 const validateInvoice = async (req, res) => {
   try {
-    const facture = await Facture.findById(req.params.id);
+    const facture = await Facture.findByPk(req.params.id, { include: buildFactureInclude() });
 
     if (!facture) {
       return res.status(404).json({ message: 'Facture introuvable.' });
@@ -399,13 +429,14 @@ const validateInvoice = async (req, res) => {
       return res.status(400).json({ message: 'Statut de validation invalide.' });
     }
 
-    facture.statut = statut;
-    facture.commentaire_admin = commentaire_admin ?? facture.commentaire_admin;
-    facture.validated_by = req.user.id;
-    facture.validated_at = new Date();
-    await facture.save();
+    await facture.update({
+      statut,
+      commentaire_admin: commentaire_admin ?? facture.commentaire_admin,
+      validated_by: req.user.id,
+      validated_at: new Date()
+    });
 
-    const updatedFacture = await loadFactureById(facture._id);
+    const updatedFacture = await Facture.findByPk(facture.id, { include: buildFactureInclude() });
 
     try {
       let emailResult;
@@ -454,7 +485,7 @@ const validateInvoice = async (req, res) => {
 
 const sendInvoiceEmail = async (req, res) => {
   try {
-    const facture = await loadFactureById(req.params.id);
+    const facture = await Facture.findByPk(req.params.id, { include: buildFactureInclude() });
 
     if (!facture) {
       return res.status(404).json({ message: 'Facture introuvable.' });

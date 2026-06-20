@@ -1,26 +1,39 @@
-const mongoose = require('mongoose');
+const { DataTypes } = require('sequelize');
+const sequelize = require('../config/database');
 
-const userSchema = new mongoose.Schema({
-  nom: { type: String, required: true },
-  email: { type: String, required: true, unique: true, lowercase: true, trim: true },
-  mot_de_passe: { type: String, required: true },
-  role: { type: String, enum: ['admin', 'user'], required: true },
-  created_at: { type: Date, default: Date.now }
-});
-
-userSchema.virtual('id').get(function getId() {
-  return this._id.toString();
-});
-
-userSchema.set('toJSON', {
-  virtuals: true,
-  transform: (_, ret) => {
-    ret.id = ret._id.toString();
-    delete ret._id;
-    delete ret.__v;
-    delete ret.mot_de_passe;
-    return ret;
+const User = sequelize.define('User', {
+  id: {
+    type: DataTypes.INTEGER,
+    primaryKey: true,
+    autoIncrement: true
+  },
+  nom: {
+    type: DataTypes.STRING(100),
+    allowNull: false
+  },
+  email: {
+    type: DataTypes.STRING(150),
+    allowNull: false,
+    unique: true
+  },
+  mot_de_passe: {
+    type: DataTypes.STRING(255),
+    allowNull: false
+  },
+  role: {
+    type: DataTypes.STRING(20),
+    allowNull: false,
+    validate: {
+      isIn: [['admin', 'user']]
+    }
+  },
+  created_at: {
+    type: DataTypes.DATE,
+    defaultValue: DataTypes.NOW
   }
+}, {
+  tableName: 'users',
+  timestamps: false
 });
 
-module.exports = mongoose.model('User', userSchema);
+module.exports = User;

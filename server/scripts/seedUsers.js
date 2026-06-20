@@ -4,27 +4,23 @@ const User = require('../models/User');
 async function seedDefaultUsers() {
   const hashedPassword = await bcrypt.hash('password123', 10);
 
-  await User.findOneAndUpdate(
-    { email: 'admin@test.com' },
-    {
+  await User.findOrCreate({
+    where: { email: 'admin@test.com' },
+    defaults: {
       nom: 'Admin TechPro',
-      email: 'admin@test.com',
       mot_de_passe: hashedPassword,
       role: 'admin'
-    },
-    { upsert: true, new: true, setDefaultsOnInsert: true }
-  );
+    }
+  });
 
-  await User.findOneAndUpdate(
-    { email: 'client@test.com' },
-    {
+  await User.findOrCreate({
+    where: { email: 'client@test.com' },
+    defaults: {
       nom: 'Client Dupont',
-      email: 'client@test.com',
       mot_de_passe: hashedPassword,
       role: 'user'
-    },
-    { upsert: true, new: true, setDefaultsOnInsert: true }
-  );
+    }
+  });
 
   console.log('✅ Default users seeded (admin@test.com / client@test.com — password123).');
 }

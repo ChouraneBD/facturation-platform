@@ -1,5 +1,4 @@
 export const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-export const JSON_SERVER_URL = import.meta.env.VITE_JSON_SERVER_URL || 'http://localhost:3001';
 
 function parseBody(text) {
   if (!text) {
@@ -13,8 +12,9 @@ function parseBody(text) {
   }
 }
 
-export async function api(path, { method = 'GET', token, body, baseUrl = API_URL } = {}) {
+export async function api(path, { method = 'GET', token, body } = {}) {
   const headers = {};
+  const url = `${API_URL}${path}`;
 
   if (body !== undefined) {
     headers['Content-Type'] = 'application/json';
@@ -24,11 +24,19 @@ export async function api(path, { method = 'GET', token, body, baseUrl = API_URL
     headers.Authorization = `Bearer ${token}`;
   }
 
-  const response = await fetch(`${baseUrl}${path}`, {
-    method,
-    headers,
-    body: body !== undefined ? JSON.stringify(body) : undefined
-  });
+  let response;
+  try {
+    response = await fetch(url, {
+      method,
+      headers,
+      body: body !== undefined ? JSON.stringify(body) : undefined
+    });
+  } catch (error) {
+    throw new Error(
+      `Impossible de joindre l'API (${API_URL}). ` +
+      'Vérifiez que PostgreSQL et le serveur Express sont démarrés (cd server && npm start).'
+    );
+  }
 
   const text = await response.text();
   const data = parseBody(text);
@@ -39,8 +47,4 @@ export async function api(path, { method = 'GET', token, body, baseUrl = API_URL
   }
 
   return data;
-}
-
-export async function jsonApi(path, options = {}) {
-  return api(path, { ...options, baseUrl: JSON_SERVER_URL });
 }

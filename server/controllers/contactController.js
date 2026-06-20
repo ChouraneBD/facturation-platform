@@ -9,7 +9,7 @@ const sendContactMessage = async (req, res) => {
       return res.status(400).json({ message: 'nom, email, sujet et message sont obligatoires.' });
     }
 
-    const admin = await User.findOne({ role: 'admin' }).sort({ created_at: 1 });
+    const admin = await User.findOne({ where: { role: 'admin' }, order: [['id', 'ASC']] });
     const recipient = admin?.email || process.env.ADMIN_EMAIL || process.env.SMTP_USER;
 
     if (!recipient) {

@@ -2,68 +2,43 @@
 
 Application web de gestion de facturation — PFA EMSI Casablanca.
 
-## Conformité cahier des charges
+## Stack technique
 
-| Exigence | Implémentation |
-|----------|----------------|
-| React JS | `client/` — React 19 + Vite |
-| Material UI | `@mui/material` |
-| JSON Server | `json-server/` — articles, catégories, paramètres (`jsonService.js`) |
-| Firebase Realtime Database | `firebaseService.js` — alertes workflow temps réel |
-| MongoDB | `server/` — clients, factures, utilisateurs |
-| jsPDF | Génération PDF avec logo, signature, QR |
-| Formik + Yup | Validation des formulaires |
-| JWT + rôles | Auth Express, protection des routes |
+| Composant | Technologie |
+|-----------|-------------|
+| Frontend | React 19 + Vite + Material UI |
+| Backend | Express + Sequelize |
+| Base de données | PostgreSQL |
+| Auth | JWT + rôles (admin / user) |
+| PDF | jsPDF + jsPDF-autotable |
+| Formulaires | Formik + Yup |
 
 ## Architecture
 
 ```
-client (React)
-  ├── jsonService.js  → JSON Server :3001  (articles, categories, parametres)
-  ├── jsonService.js  → Express :5000       (auth, clients, factures, dashboard)
-  └── firebaseService.js → Firebase RTDB    (alertes workflow)
+client (React :5173)
+  └── jsonService.js → Express API (:5000)
 
-server (Express + MongoDB)
-  └── écrit les alertes dans Firebase via Firebase Admin
-
-json-server (db.json)
-  └── articles.json structure du cahier des charges
+server (Express :5000)
+  └── PostgreSQL (users, clients, factures, articles, categories, parametres, workflow_alerts)
 ```
 
 ## Prérequis
 
 - Node.js 18+
-- MongoDB en local (`mongodb://127.0.0.1:27017/facturation`)
-- Projet Firebase avec **Realtime Database** activée
+- PostgreSQL en local
 
 ## Configuration
 
-### 1. Server (`server/.env`)
-
 Copier `server/.env.example` vers `server/.env` et renseigner :
 
-- `MONGODB_URI`
+- `DB_NAME`, `DB_USER`, `DB_PASSWORD`, `DB_HOST`
 - `JWT_SECRET`
-- `FIREBASE_PROJECT_ID`, `FIREBASE_CLIENT_EMAIL`, `FIREBASE_PRIVATE_KEY`, `FIREBASE_DATABASE_URL`
+- Variables SMTP (optionnel, pour les emails)
 
-### 2. Client (`client/.env`)
+Copier `client/.env.example` vers `client/.env` :
 
-Copier `client/.env.example` vers `client/.env` et renseigner les variables `VITE_FIREBASE_*`.
-
-### 3. Firebase Realtime Database — règles (dev)
-
-```json
-{
-  "rules": {
-    "workflow_alerts": {
-      ".read": true,
-      ".write": true
-    }
-  }
-}
-```
-
-Pour la production, restreindre la lecture/écriture aux utilisateurs authentifiés.
+- `VITE_API_URL=http://localhost:5000`
 
 ## Démarrage
 
@@ -71,14 +46,13 @@ Pour la production, restreindre la lecture/écriture aux utilisateurs authentifi
 # Installer toutes les dépendances
 npm run install:all
 
-# Lancer JSON Server + Express + React
+# Lancer Express + React
 npm run dev
 ```
 
 Ou séparément :
 
 ```bash
-npm run dev:json-server   # http://localhost:3001
 npm run dev:server        # http://localhost:5000
 npm run dev:client        # http://localhost:5173
 ```
@@ -95,14 +69,6 @@ Créés automatiquement au démarrage du serveur :
 ## Smoke test
 
 ```bash
-# JSON Server et Express doivent être démarrés
+# Le serveur Express doit être démarré
 cd server && npm run smoke
 ```
-
-## Données JSON Server
-
-Le fichier `json-server/db.json` contient la structure du cahier des charges :
-
-- `articles` — catalogue produits/services
-- `categories` — Informatique (20%), Services (10%), Formation (0%), Fournitures (20%)
-- `parametres` — configuration société, devise, logo

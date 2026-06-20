@@ -63,11 +63,9 @@ export function DashboardLayout() {
   const unreadCount = alerts.filter((a) => !a.lu).length;
 
   useEffect(() => {
-    if (!session?.user?.id) return undefined;
-
-    const context = { userId: session.user.id, role: session.user.role };
-    return subscribeToAlerts(context, setAlerts);
-  }, [session?.user?.id, session?.user?.role]);
+    if (!session?.token) return undefined;
+    return subscribeToAlerts(session.token, setAlerts);
+  }, [session?.token]);
 
   const handleLogout = () => {
     logout();
@@ -76,7 +74,7 @@ export function DashboardLayout() {
 
   const handleMarkRead = async (alert) => {
     try {
-      await markAlertAsRead(alert.id, { userId: session.user.id, role: session.user.role });
+      await markAlertAsRead(alert.id, session.token);
       setAlerts((prev) => prev.map((a) => (a.id === alert.id ? { ...a, lu: true } : a)));
     } catch (error) {
       notify('error', error.message);

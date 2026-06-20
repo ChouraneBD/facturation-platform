@@ -3,11 +3,10 @@
   "private": true,
   "version": "1.0.0",
   "scripts": {
-    "install:all": "npm install && npm install --prefix json-server && npm install --prefix server && npm install --prefix client",
-    "dev:json-server": "npm run start --prefix json-server",
+    "install:all": "npm install && npm install --prefix server && npm install --prefix client",
     "dev:server": "npm run dev --prefix server",
     "dev:client": "npm run dev --prefix client",
-    "dev": "concurrently -n json,api,web -c blue,green,magenta \"npm run dev:json-server\" \"npm run dev:server\" \"npm run dev:client\""
+    "dev": "concurrently -n api,web -c green,magenta \"npm run dev:server\" \"npm run dev:client\""
   },
   "devDependencies": {
     "concurrently": "^9.2.1"

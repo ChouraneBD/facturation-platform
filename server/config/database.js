@@ -1,11 +1,14 @@
-const mongoose = require('mongoose');
+const { Sequelize } = require('sequelize');
 
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/facturation';
+const sequelize = new Sequelize(
+  process.env.DB_NAME || 'facturation',
+  process.env.DB_USER || 'postgres',
+  process.env.DB_PASSWORD || '',
+  {
+    host: process.env.DB_HOST || 'localhost',
+    dialect: 'postgres',
+    logging: false
+  }
+);
 
-async function connectDatabase() {
-  mongoose.set('strictQuery', true);
-  await mongoose.connect(MONGODB_URI);
-  console.log('✅ MongoDB connection established successfully.');
-}
-
-module.exports = connectDatabase;
+module.exports = sequelize;

@@ -1,26 +1,39 @@
-const mongoose = require('mongoose');
+const { DataTypes } = require('sequelize');
+const sequelize = require('../config/database');
 
-const clientSchema = new mongoose.Schema({
-  nom: { type: String, required: true },
-  email: { type: String, default: null },
-  tel: { type: String, default: null },
-  adresse: { type: String, default: null },
-  ville: { type: String, default: null },
-  created_at: { type: Date, default: Date.now }
-});
-
-clientSchema.virtual('id').get(function getId() {
-  return this._id.toString();
-});
-
-clientSchema.set('toJSON', {
-  virtuals: true,
-  transform: (_, ret) => {
-    ret.id = ret._id.toString();
-    delete ret._id;
-    delete ret.__v;
-    return ret;
+const Client = sequelize.define('Client', {
+  id: {
+    type: DataTypes.INTEGER,
+    primaryKey: true,
+    autoIncrement: true
+  },
+  nom: {
+    type: DataTypes.STRING(100),
+    allowNull: false
+  },
+  email: {
+    type: DataTypes.STRING(150),
+    allowNull: true
+  },
+  tel: {
+    type: DataTypes.STRING(25),
+    allowNull: true
+  },
+  adresse: {
+    type: DataTypes.TEXT,
+    allowNull: true
+  },
+  ville: {
+    type: DataTypes.STRING(80),
+    allowNull: true
+  },
+  created_at: {
+    type: DataTypes.DATE,
+    defaultValue: DataTypes.NOW
   }
+}, {
+  tableName: 'clients',
+  timestamps: false
 });
 
-module.exports = mongoose.model('Client', clientSchema);
+module.exports = Client;

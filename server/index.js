@@ -3,15 +3,38 @@ const cors = require('cors');
 const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '.env') });
 
-const connectDatabase = require('./config/database');
-const { initFirebaseAdmin } = require('./config/firebase');
+const sequelize = require('./config/database');
+const User = require('./models/User');
+const Client = require('./models/Client');
+const Category = require('./models/Category');
+const Article = require('./models/Article');
+const Facture = require('./models/Facture');
+const LigneFacture = require('./models/LigneFacture');
 const authRoutes = require('./routes/authRoutes');
 const clientRoutes = require('./routes/clientRoutes');
+const categoryRoutes = require('./routes/categoryRoutes');
+const articleRoutes = require('./routes/articleRoutes');
 const factureRoutes = require('./routes/factureRoutes');
+const parametresRoutes = require('./routes/parametresRoutes');
 const dashboardRoutes = require('./routes/dashboardRoutes');
+const alertRoutes = require('./routes/alertRoutes');
+const { seedDefaultCategories } = require('./controllers/categoriesController');
+const { seedDefaultParametres } = require('./controllers/parametresController');
 const { warmUpEmailTransport } = require('./services/emailService');
 const { sendContactMessage } = require('./controllers/contactController');
 const { seedDefaultUsers } = require('./scripts/seedUsers');
+
+Category.hasMany(Article, { foreignKey: 'categorie_id', onDelete: 'SET NULL' });
+Article.belongsTo(Category, { foreignKey: 'categorie_id', onDelete: 'SET NULL' });
+Client.hasMany(Facture, { foreignKey: 'client_id' });
+User.hasMany(Facture, { foreignKey: 'user_id' });
+User.hasMany(Facture, { foreignKey: 'validated_by' });
+Facture.belongsTo(Client, { foreignKey: 'client_id' });
+Facture.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
+Facture.belongsTo(User, { foreignKey: 'validated_by', as: 'validatedBy' });
+Facture.hasMany(LigneFacture, { foreignKey: 'facture_id', as: 'lignes_facture', onDelete: 'CASCADE' });
+LigneFacture.belongsTo(Facture, { foreignKey: 'facture_id', onDelete: 'CASCADE' });
+LigneFacture.belongsTo(Article, { foreignKey: 'article_id', onDelete: 'SET NULL' });
 
 const app = express();
 const PORT = 5000;
@@ -21,19 +44,19 @@ app.use(express.json({ limit: '15mb' }));
 
 app.use('/api/auth', authRoutes);
 app.use('/api/clients', clientRoutes);
+app.use('/api/categories', categoryRoutes);
+app.use('/api/articles', articleRoutes);
 app.use('/api/factures', factureRoutes);
+app.use('/api/parametres', parametresRoutes);
 app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/alerts', alertRoutes);
 
 app.post('/api/contact', sendContactMessage);
 
 app.get('/api/status', (req, res) => {
   res.json({
     message: 'SaaS Invoicing API is running.',
-    stack: {
-      mongodb: true,
-      jsonServer: process.env.JSON_SERVER_URL || 'http://localhost:3001',
-      firebase: Boolean(process.env.FIREBASE_DATABASE_URL)
-    }
+    stack: { postgresql: true }
   });
 });
 
@@ -48,8 +71,14 @@ app.use((error, req, res, next) => {
 
 async function initializeSystem() {
   try {
-    await connectDatabase();
-    initFirebaseAdmin();
+    await sequelize.authenticate();
+    console.log('✅ PostgreSQL database connection has been established successfully.');
+
+    await sequelize.sync({ alter: true });
+    console.log('✅ All database tables synchronized successfully.');
+
+    await seedDefaultCategories();
+    await seedDefaultParametres();
     await seedDefaultUsers();
 
     try {

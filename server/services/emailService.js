@@ -69,7 +69,7 @@ async function getTransporter() {
 }
 
 async function resolveAdminEmail() {
-    const admin = await User.findOne({ role: 'admin' }).sort({ created_at: 1 });
+    const admin = await User.findOne({ where: { role: 'admin' }, order: [['id', 'ASC']] });
     if (admin?.email) {
         return admin.email;
     }
@@ -91,7 +91,7 @@ async function resolveClientEmail(facture) {
     }
 
     if (facture?.user_id) {
-        const user = await User.findById(facture.user_id);
+        const user = await User.findByPk(facture.user_id);
         return user?.email || null;
     }
 

@@ -4,7 +4,6 @@ import * as Yup from 'yup';
 import { Button, Stack } from '@mui/material';
 import FileDownloadIcon from '@mui/icons-material/FileDownload';
 import { facturesService, clientsService, articlesService, loadAppSettings } from '../services/jsonService';
-import { notifyWorkflowAlert, ALERT_TYPES } from '../services/firebaseService';
 import { calculateInvoiceTotals } from '../utils/invoiceCalculations';
 import { generatePdfBlob } from '../utils/pdfGenerator';
 import { exportFacturesToExcel } from '../utils/excelExport';
@@ -143,7 +142,7 @@ export function Factures() {
     try {
       const payload = {
         ...values,
-        client_id: values.client_id,
+        client_id: Number(values.client_id),
         methode_calcul: Number(values.methode_calcul),
         remise_globale_pct: Number(values.remise_globale_pct || 0),
         lignes: values.lignes.map(line => ({
@@ -158,10 +157,6 @@ export function Factures() {
 
       const result = await facturesService.create(payload, session.token);
 
-      notifyWorkflowAlert(ALERT_TYPES.CREATED, {
-        numero: result.facture?.numero || result.numero,
-        message: result.message
-      });
       notify('success', result.message || 'Facture créée.');
       resetForm();
       loadData();
@@ -182,10 +177,6 @@ export function Factures() {
         }
 
         const result = await facturesService.validate(facture.id, { statut: nextStatus, pdfBase64, commentaire_admin: comment || null }, session.token);
-        notifyWorkflowAlert(nextStatus === 'validee' ? ALERT_TYPES.VALIDATED : ALERT_TYPES.REJECTED, {
-          numero: facture.numero,
-          message: result.message
-        });
         notify('success', result.message || `Facture ${facture.numero} traitée. Notification email envoyée.`);
       } else {
         await facturesService.updateGlobalDiscount(facture.id, { remise_globale_pct: Number(discount || 0) }, session.token);
@@ -196,9 +187,6 @@ export function Factures() {
           date_encaissement: dateEncaissement || null,
           type_virement: typeVirement || null
         }, session.token);
-        if (nextStatus === 'payee') {
-          notifyWorkflowAlert(ALERT_TYPES.PAID, { numero: facture.numero, message: result.message });
-        }
         notify('success', result.message || `Facture ${facture.numero} mise à jour.`);
       }
       loadData();

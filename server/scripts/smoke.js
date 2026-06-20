@@ -1,8 +1,7 @@
 const baseUrl = process.env.SMOKE_BASE_URL || 'http://localhost:5000';
-const jsonServerUrl = process.env.JSON_SERVER_URL || 'http://localhost:3001';
 
-async function request(base, path, options = {}) {
-  const response = await fetch(base + path, options);
+async function request(path, options = {}) {
+  const response = await fetch(baseUrl + path, options);
   const text = await response.text();
 
   let body = text;
@@ -25,7 +24,7 @@ async function main() {
   const uniqueSuffix = Date.now();
   const userEmail = `smoke.user.${uniqueSuffix}@example.com`;
 
-  const adminLogin = await request(baseUrl, '/api/auth/login', {
+  const adminLogin = await request('/api/auth/login', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email: 'admin@test.com', mot_de_passe: 'password123' })
@@ -37,14 +36,14 @@ async function main() {
     'Content-Type': 'application/json'
   };
 
-  const userRegister = await request(baseUrl, '/api/auth/register', {
+  const userRegister = await request('/api/auth/register', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ nom: 'Smoke User', email: userEmail, mot_de_passe: 'Secret123', role: 'user' })
   });
   assert(userRegister.status === 201, `user register failed: ${JSON.stringify(userRegister.body)}`);
 
-  const userLogin = await request(baseUrl, '/api/auth/login', {
+  const userLogin = await request('/api/auth/login', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email: userEmail, mot_de_passe: 'Secret123' })
@@ -56,18 +55,18 @@ async function main() {
     'Content-Type': 'application/json'
   };
 
-  const categories = await request(jsonServerUrl, '/categories', { headers: userHeaders });
+  const categories = await request('/api/categories', { headers: userHeaders });
   assert(categories.status === 200, `categories failed: ${JSON.stringify(categories.body)}`);
-  assert(Array.isArray(categories.body) && categories.body.length >= 4, 'default categories missing in JSON Server');
+  assert(Array.isArray(categories.body) && categories.body.length >= 4, 'default categories missing');
 
-  const clientCreate = await request(baseUrl, '/api/clients', {
+  const clientCreate = await request('/api/clients', {
     method: 'POST',
     headers: userHeaders,
     body: JSON.stringify({ nom: 'Smoke Client', email: `client.${uniqueSuffix}@example.com`, ville: 'Rabat' })
   });
   assert(clientCreate.status === 201, `client create failed: ${JSON.stringify(clientCreate.body)}`);
 
-  const articleCreate = await request(jsonServerUrl, '/articles', {
+  const articleCreate = await request('/api/articles', {
     method: 'POST',
     headers: adminHeaders,
     body: JSON.stringify({
@@ -79,32 +78,32 @@ async function main() {
   });
   assert(articleCreate.status === 201, `article create failed: ${JSON.stringify(articleCreate.body)}`);
 
-  const factureCreate = await request(baseUrl, '/api/factures', {
+  const factureCreate = await request('/api/factures', {
     method: 'POST',
     headers: userHeaders,
     body: JSON.stringify({
       client_id: clientCreate.body.client.id,
       methode_calcul: 1,
       remise_globale_pct: 5,
-      lignes: [{ article_id: articleCreate.body.id, quantite: 2, prix_unitaire_applique: 100, remise_pct: 10 }]
+      lignes: [{ article_id: articleCreate.body.article.id, quantite: 2, prix_unitaire_applique: 100, remise_pct: 10 }]
     })
   });
   assert(factureCreate.status === 201, `facture create failed: ${JSON.stringify(factureCreate.body)}`);
 
   const factureId = factureCreate.body.facture.id;
 
-  const paramUpsert = await request(jsonServerUrl, '/parametres/upsert', {
+  const paramUpsert = await request('/api/parametres', {
     method: 'PUT',
     headers: adminHeaders,
     body: JSON.stringify({ cle: 'nom_entreprise', valeur: 'Smoke Test SARL', description: 'Test param' })
   });
   assert(paramUpsert.status === 201 || paramUpsert.status === 200, `param upsert failed: ${JSON.stringify(paramUpsert.body)}`);
 
-  const dashboard = await request(baseUrl, '/api/dashboard/metrics', { headers: adminHeaders });
+  const dashboard = await request('/api/dashboard/metrics', { headers: adminHeaders });
   assert(dashboard.status === 200, `dashboard failed: ${JSON.stringify(dashboard.body)}`);
   assert(typeof dashboard.body.totals?.factures === 'number', 'dashboard totals are missing');
 
-  const factureRead = await request(baseUrl, `/api/factures/${factureId}`, { headers: userHeaders });
+  const factureRead = await request(`/api/factures/${factureId}`, { headers: userHeaders });
   assert(factureRead.status === 200, `facture read failed: ${JSON.stringify(factureRead.body)}`);
   assert(Array.isArray(factureRead.body.lignes_facture) && factureRead.body.lignes_facture.length === 1, 'facture lines are missing');
 

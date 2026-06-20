@@ -7,7 +7,7 @@ const JWT_SECRET = process.env.JWT_SECRET || 'C41CF281DC';
 const buildToken = (user) =>
   jwt.sign(
     {
-      id: user.id || user._id.toString(),
+      id: user.id,
       email: user.email,
       role: user.role
     },
@@ -31,7 +31,7 @@ const register = async (req, res) => {
       });
     }
 
-    const existingUser = await User.findOne({ email });
+    const existingUser = await User.findOne({ where: { email } });
 
     if (existingUser) {
       return res.status(409).json({
@@ -78,7 +78,7 @@ const login = async (req, res) => {
       });
     }
 
-    const user = await User.findOne({ email });
+    const user = await User.findOne({ where: { email } });
 
     if (!user) {
       return res.status(401).json({

@@ -70,16 +70,16 @@ export function Login() {
             Gestion de facturation professionnelle
           </Typography>
           <Typography sx={{ opacity: 0.95, mb: 3 }}>
-            Factures, clients, catalogue, signature numérique et alertes workflow — conforme au cahier des charges PFA EMSI.
+            Factures, clients, catalogue, signature numérique et alertes workflow — stack React + Express + PostgreSQL.
           </Typography>
           <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
             <Box>
-              <Typography fontWeight={700}>jsonService.js</Typography>
-              <Typography variant="body2" sx={{ opacity: 0.9 }}>CRUD via JSON Server</Typography>
+              <Typography fontWeight={700}>API REST</Typography>
+              <Typography variant="body2" sx={{ opacity: 0.9 }}>Express + PostgreSQL</Typography>
             </Box>
             <Box>
-              <Typography fontWeight={700}>firebaseService.js</Typography>
-              <Typography variant="body2" sx={{ opacity: 0.9 }}>Alertes workflow temps réel</Typography>
+              <Typography fontWeight={700}>Alertes workflow</Typography>
+              <Typography variant="body2" sx={{ opacity: 0.9 }}>Notifications en base de données</Typography>
             </Box>
           </Stack>
         </CardContent>
