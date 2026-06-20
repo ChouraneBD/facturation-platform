@@ -1,8 +1,10 @@
 import { Outlet, Link } from 'react-router-dom';
-import { ShoppingCart, Globe, LayoutDashboard } from 'lucide-react';
+import { ShoppingCart, LayoutDashboard } from 'lucide-react';
 import { useCart } from '../contexts/CartContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
+import { AppLogo } from '../components/AppLogo';
+import { APP_NAME } from '../config/branding';
 
 export function PublicLayout() {
   const { notice } = useToast();
@@ -18,7 +20,7 @@ export function PublicLayout() {
         <div className="public-top-bar">Solutions IT sur-mesure — Casablanca &amp; Grand Maroc</div>
         <div className="container public-nav-wrapper">
           <Link to="/" className="public-logo">
-            TechPro <span>Services & Consulting</span>
+            <AppLogo size={40} subtitle="Facturation & paiements" />
           </Link>
           
           <nav className="public-nav-links">
@@ -28,7 +30,7 @@ export function PublicLayout() {
             {isAuthenticated ? (
               <Link to="/dashboard" className="nav-login"><LayoutDashboard size={16} /> Dashboard</Link>
             ) : (
-              <Link to="/login" className="nav-login"><Globe size={16} /> Connexion</Link>
+              <Link to="/login" className="nav-login"><LayoutDashboard size={16} /> Connexion</Link>
             )}
           </nav>
         </div>
@@ -53,7 +55,9 @@ export function PublicLayout() {
         <div className="container">
           <div className="footer-grid">
             <div>
-              <div className="footer-logo">TechPro Services</div>
+              <div className="footer-logo">
+                <AppLogo size={32} subtitle="Gestion de factures" />
+              </div>
               <p className="footer-desc">
                 Cabinet de conseil spécialisé dans le développement logiciel, les infrastructures cloud et la sécurité informatique.
               </p>
@@ -89,7 +93,7 @@ export function PublicLayout() {
             </div>
           </div>
           <div className="footer-bottom">
-            <span>© 2026 TechPro Services — Tous droits réservés</span>
+            <span>© 2026 {APP_NAME} — Tous droits réservés</span>
             <div className="footer-bottom-links">
               <a href="#">Mentions légales</a>
               <a href="#">Politique de confidentialité</a>

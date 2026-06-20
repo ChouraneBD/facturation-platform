@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Outlet, NavLink, useNavigate } from 'react-router-dom';
+import { Outlet, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import {
   AppBar,
   Badge,
@@ -27,6 +27,7 @@ import PeopleIcon from '@mui/icons-material/People';
 import CategoryIcon from '@mui/icons-material/Category';
 import Inventory2Icon from '@mui/icons-material/Inventory2';
 import ReceiptLongIcon from '@mui/icons-material/ReceiptLong';
+import PaymentsIcon from '@mui/icons-material/Payments';
 import SettingsIcon from '@mui/icons-material/Settings';
 import LogoutIcon from '@mui/icons-material/Logout';
 import PublicIcon from '@mui/icons-material/Public';
@@ -36,6 +37,8 @@ import MenuIcon from '@mui/icons-material/Menu';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import { subscribeToAlerts, markAlertAsRead } from '../services/firebaseService';
+import { AppLogo } from '../components/AppLogo';
+import { APP_NAME, APP_TAGLINE } from '../config/branding';
 
 const tabs = [
   { id: '/dashboard', label: 'Dashboard', icon: DashboardIcon },
@@ -43,8 +46,21 @@ const tabs = [
   { id: '/dashboard/categories', label: 'Catégories', icon: CategoryIcon, adminOnly: true },
   { id: '/dashboard/articles', label: 'Articles', icon: Inventory2Icon, adminOnly: true },
   { id: '/dashboard/factures', label: 'Factures', icon: ReceiptLongIcon },
+  { id: '/dashboard/paiements', label: 'Paiements', icon: PaymentsIcon },
   { id: '/dashboard/parametres', label: 'Paramètres', icon: SettingsIcon, adminOnly: true }
 ];
+
+function resolveActiveTab(path, visibleTabs) {
+  const exact = visibleTabs.find((tab) => path === tab.id);
+  if (exact) return exact.id;
+
+  const nested = visibleTabs
+    .filter((tab) => tab.id !== '/dashboard')
+    .find((tab) => path.startsWith(`${tab.id}/`));
+  if (nested) return nested.id;
+
+  return path.startsWith('/dashboard') ? '/dashboard' : visibleTabs[0]?.id || '/dashboard';
+}
 
 export function DashboardLayout() {
   const theme = useTheme();
@@ -52,14 +68,14 @@ export function DashboardLayout() {
   const { session, logout } = useAuth();
   const { notify } = useToast();
   const navigate = useNavigate();
+  const location = useLocation();
   const isAdmin = session?.user?.role === 'admin';
   const [mobileOpen, setMobileOpen] = useState(false);
   const [alerts, setAlerts] = useState([]);
   const [showAlerts, setShowAlerts] = useState(false);
 
   const visibleTabs = tabs.filter((tab) => !tab.adminOnly || isAdmin);
-  const currentPath = window.location.pathname;
-  const activeTab = visibleTabs.find((tab) => currentPath === tab.id || currentPath.startsWith(`${tab.id}/`))?.id || '/dashboard';
+  const activeTab = resolveActiveTab(location.pathname, visibleTabs);
   const unreadCount = alerts.filter((a) => !a.lu).length;
 
   useEffect(() => {
@@ -119,16 +135,19 @@ export function DashboardLayout() {
             </IconButton>
           ) : null}
 
-          <Box sx={{ flexGrow: 1 }}>
+          <Box sx={{ flexGrow: 1, display: 'flex', alignItems: 'center', gap: 2 }}>
+            <AppLogo size={44} showText={false} />
+            <Box>
             <Typography variant="overline" color="primary" fontWeight={700}>
-              TechPro Services
+              {APP_NAME}
             </Typography>
             <Typography variant="h6" fontWeight={700}>
               Tableau de bord
             </Typography>
             <Typography variant="caption" color="text.secondary">
-              {session?.user?.email} · {isAdmin ? 'Administrateur' : 'Comptable'}
+              {APP_TAGLINE} · {session?.user?.email} · {isAdmin ? 'Administrateur' : 'Comptable'}
             </Typography>
+            </Box>
           </Box>
 
           <Stack direction="row" spacing={1} alignItems="center">
@@ -148,13 +167,18 @@ export function DashboardLayout() {
         </Toolbar>
 
         {!isMobile ? (
-          <Tabs value={activeTab} variant="scrollable" scrollButtons="auto" sx={{ px: 2 }}>
+          <Tabs
+            value={activeTab}
+            variant="scrollable"
+            scrollButtons="auto"
+            sx={{ px: 2 }}
+            onChange={(_, value) => navigate(value)}
+          >
             {visibleTabs.map((tab) => (
               <Tab
                 key={tab.id}
                 value={tab.id}
                 label={tab.label}
-                onClick={() => navigate(tab.id)}
                 sx={{ textTransform: 'none', fontWeight: 600 }}
               />
             ))}

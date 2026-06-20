@@ -1,4 +1,4 @@
-# Facturation Platform
+# Factora
 
 Application web de gestion de facturation — PFA EMSI Casablanca.
 

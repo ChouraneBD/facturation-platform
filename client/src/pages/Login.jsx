@@ -5,6 +5,8 @@ import * as Yup from 'yup';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import { authService } from '../services/jsonService';
+import { AppLogo } from '../components/AppLogo';
+import { APP_NAME, APP_TAGLINE } from '../config/branding';
 import {
   Box,
   Button,
@@ -65,12 +67,14 @@ export function Login() {
     <Box sx={{ minHeight: '100vh', display: 'grid', gridTemplateColumns: { md: '1.1fr 1fr' }, gap: 3, p: { xs: 2, md: 4 }, alignItems: 'center' }}>
       <Card sx={{ bgcolor: 'primary.main', color: 'primary.contrastText', height: '100%' }}>
         <CardContent sx={{ p: 4 }}>
-          <Typography variant="overline" sx={{ opacity: 0.9 }}>Facturation Platform</Typography>
+          <Box sx={{ mb: 2 }}>
+            <AppLogo size={56} subtitle={APP_TAGLINE} light />
+          </Box>
           <Typography variant="h4" fontWeight={700} sx={{ mt: 1, mb: 2 }}>
-            Gestion de facturation professionnelle
+            Bienvenue sur {APP_NAME}
           </Typography>
           <Typography sx={{ opacity: 0.95, mb: 3 }}>
-            Factures, clients, catalogue, signature numérique et alertes workflow — stack React + Express + PostgreSQL.
+            Factures, clients, catalogue, signature numérique et alertes workflow — votre plateforme de facturation tout-en-un.
           </Typography>
           <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
             <Box>
