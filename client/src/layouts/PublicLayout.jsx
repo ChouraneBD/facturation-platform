@@ -1,14 +1,22 @@
-import { Outlet, Link } from 'react-router-dom';
+import { useEffect } from 'react';
+import { Outlet, Link, useLocation } from 'react-router-dom';
 import { ShoppingCart, LayoutDashboard } from 'lucide-react';
 import { useCart } from '../contexts/CartContext';
 import { useAuth } from '../contexts/AuthContext';
 import { AppLogo } from '../components/AppLogo';
+import { PublicSectionLink } from '../components/PublicSectionLink';
 import { APP_NAME } from '../config/branding';
 
 export function PublicLayout() {
+  const location = useLocation();
   const { cart } = useCart();
   const { isAuthenticated } = useAuth();
   const cartCount = cart.reduce((acc, item) => acc + item.quantity, 0);
+
+  useEffect(() => {
+    if (location.pathname === '/' && location.hash) return;
+    window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+  }, [location.pathname, location.hash]);
 
   return (
     <div className="public-shell">
@@ -20,8 +28,8 @@ export function PublicLayout() {
           </Link>
           
           <nav className="public-nav-links">
-            <a href="#services">Nos Services</a>
-            <a href="#contact">Contact</a>
+            <PublicSectionLink section="services">Nos Services</PublicSectionLink>
+            <PublicSectionLink section="contact">Contact</PublicSectionLink>
             <Link to="/cart" className="nav-cart"><ShoppingCart size={16} /> Panier ({cartCount})</Link>
             {isAuthenticated ? (
               <Link to="/dashboard" className="nav-login"><LayoutDashboard size={16} /> Dashboard</Link>
@@ -65,8 +73,8 @@ export function PublicLayout() {
               <h4>Menu</h4>
               <ul>
                 <li><Link to="/">Accueil</Link></li>
-                <li><a href="#services">Services</a></li>
-                <li><a href="#contact">Contact</a></li>
+                <li><PublicSectionLink section="services">Services</PublicSectionLink></li>
+                <li><PublicSectionLink section="contact">Contact</PublicSectionLink></li>
                 <li><Link to="/login">Espace Client</Link></li>
               </ul>
             </div>
