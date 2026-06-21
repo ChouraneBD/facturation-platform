@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Box, Button, Paper, Stack, Typography } from '@mui/material';
 import { useCart } from '../../contexts/CartContext';
@@ -17,6 +17,8 @@ export function Checkout() {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [signature, setSignature] = useState('');
+  const [canConfirm, setCanConfirm] = useState(false);
+  const signaturePadRef = useRef(null);
   const [appSettings, setAppSettings] = useState({ devise: 'MAD' });
 
   useEffect(() => {
@@ -36,7 +38,9 @@ export function Checkout() {
 
   const generateInvoice = async () => {
     if (cart.length === 0) return;
-    if (!signature) {
+
+    const finalSignature = signature || signaturePadRef.current?.exportSignature() || '';
+    if (!finalSignature) {
       notify('error', 'Veuillez signer avant de confirmer la facture.');
       return;
     }
@@ -62,7 +66,7 @@ export function Checkout() {
         client_id: client.id,
         methode_calcul: 1,
         remise_globale_pct: 0,
-        signature_base64: signature,
+        signature_base64: finalSignature,
         lignes: cart.map((item) => ({
           article_id: item.id,
           designation_snapshot: item.designation,
@@ -164,14 +168,19 @@ export function Checkout() {
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
             Dessinez votre signature — elle sera intégrée au PDF avec le code QR.
           </Typography>
-          <SignaturePad value={signature} onChange={setSignature} />
+          <SignaturePad
+            ref={signaturePadRef}
+            value={signature}
+            onChange={setSignature}
+            onAvailabilityChange={setCanConfirm}
+          />
         </Paper>
 
         <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} justifyContent="center">
           <Button variant="outlined" onClick={() => navigate('/cart')} disabled={loading}>
             Retour au panier
           </Button>
-          <Button variant="contained" size="large" onClick={generateInvoice} disabled={loading || !signature}>
+          <Button variant="contained" size="large" onClick={generateInvoice} disabled={loading || !canConfirm}>
             {loading ? 'Génération...' : 'Confirmer et télécharger la facture'}
           </Button>
         </Stack>
