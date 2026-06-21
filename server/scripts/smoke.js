@@ -62,7 +62,7 @@ async function main() {
   const clientCreate = await request('/api/clients', {
     method: 'POST',
     headers: userHeaders,
-    body: JSON.stringify({ nom: 'Smoke Client', email: `client.${uniqueSuffix}@example.com`, ville: 'Rabat' })
+    body: JSON.stringify({ nom: 'Smoke Client', email: userEmail, ville: 'Rabat' })
   });
   assert(clientCreate.status === 201, `client create failed: ${JSON.stringify(clientCreate.body)}`);
 

@@ -13,7 +13,7 @@ const {
   summarizeEmailResults
 } = require('../services/emailService');
 const { ALERT_TYPES, notifyAdmins, notifyUser } = require('../services/alertService');
-const { canAccessFacture, factureScopeWhere } = require('../utils/accessScope');
+const { canAccessFacture, factureScopeWhere, canAccessClient, isAdmin } = require('../utils/accessScope');
 
 const roundMoney = (value) => Number(Number(value || 0).toFixed(2));
 
@@ -215,6 +215,11 @@ const createFacture = async (req, res) => {
       return res.status(400).json({ message: 'client_id invalide.' });
     }
 
+    if (!canAccessClient(req.user, client)) {
+      await transaction.rollback();
+      return res.status(403).json({ message: 'Accès interdit à ce client.' });
+    }
+
     if (!Number.isInteger(Number(methode_calcul)) || Number(methode_calcul) < 1 || Number(methode_calcul) > 4) {
       await transaction.rollback();
       return res.status(400).json({ message: 'methode_calcul doit être comprise entre 1 et 4.' });
@@ -319,6 +324,10 @@ const updateGlobalDiscount = async (req, res) => {
       return res.status(404).json({ message: 'Facture introuvable.' });
     }
 
+    if (!canAccessFacture(req.user, facture)) {
+      return res.status(403).json({ message: 'Accès interdit à cette facture.' });
+    }
+
     const remiseGlobalePct = Number(req.body.remise_globale_pct);
 
     if (Number.isNaN(remiseGlobalePct) || remiseGlobalePct < 0 || remiseGlobalePct > 100) {
@@ -369,6 +378,15 @@ const updateStatus = async (req, res) => {
 
     if (!['en_attente', 'validee', 'rejetee', 'payee'].includes(statut)) {
       return res.status(400).json({ message: 'Statut invalide.' });
+    }
+
+    if (!isAdmin(req.user)) {
+      if (statut !== 'payee') {
+        return res.status(403).json({ message: 'Seuls les administrateurs peuvent modifier ce statut.' });
+      }
+      if (facture.statut !== 'validee') {
+        return res.status(400).json({ message: 'Seules les factures validées peuvent être marquées comme payées.' });
+      }
     }
 
     const previousStatus = facture.statut;
@@ -499,6 +517,10 @@ const sendInvoiceEmail = async (req, res) => {
 
     if (!facture) {
       return res.status(404).json({ message: 'Facture introuvable.' });
+    }
+
+    if (!canAccessFacture(req.user, facture)) {
+      return res.status(403).json({ message: 'Accès interdit à cette facture.' });
     }
 
     const { pdfBase64 } = req.body;
