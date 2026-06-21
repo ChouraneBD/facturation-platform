@@ -29,6 +29,7 @@ import SettingsIcon from '@mui/icons-material/Settings';
 import LogoutIcon from '@mui/icons-material/Logout';
 import PublicIcon from '@mui/icons-material/Public';
 import MenuIcon from '@mui/icons-material/Menu';
+import { User } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import { subscribeToAlerts, markAlertAsRead } from '../services/firebaseService';
@@ -38,13 +39,15 @@ import { APP_NAME, APP_TAGLINE } from '../config/branding';
 
 const tabs = [
   { id: '/dashboard', label: 'Dashboard', icon: DashboardIcon },
-  { id: '/dashboard/clients', label: 'Clients', icon: PeopleIcon },
-  { id: '/dashboard/categories', label: 'Catégories', icon: CategoryIcon, adminOnly: true },
-  { id: '/dashboard/articles', label: 'Articles', icon: Inventory2Icon, adminOnly: true },
   { id: '/dashboard/factures', label: 'Factures', icon: ReceiptLongIcon },
   { id: '/dashboard/paiements', label: 'Paiements', icon: PaymentsIcon },
+  { id: '/dashboard/clients', label: 'Clients', icon: PeopleIcon, adminOnly: true },
+  { id: '/dashboard/categories', label: 'Catégories', icon: CategoryIcon, adminOnly: true },
+  { id: '/dashboard/articles', label: 'Articles', icon: Inventory2Icon, adminOnly: true },
   { id: '/dashboard/parametres', label: 'Paramètres', icon: SettingsIcon, adminOnly: true }
 ];
+
+const profilePath = '/dashboard/profil';
 
 function resolveActiveTab(path, visibleTabs) {
   const exact = visibleTabs.find((tab) => path === tab.id);
@@ -70,7 +73,10 @@ export function DashboardLayout() {
   const [alerts, setAlerts] = useState([]);
 
   const visibleTabs = tabs.filter((tab) => !tab.adminOnly || isAdmin);
-  const activeTab = resolveActiveTab(location.pathname, visibleTabs);
+  const onProfilePage = !isAdmin && location.pathname === profilePath;
+  const activeTab = onProfilePage
+    ? false
+    : resolveActiveTab(location.pathname, visibleTabs);
 
   useEffect(() => {
     if (!session?.token) return undefined;
@@ -129,6 +135,24 @@ export function DashboardLayout() {
           </ListItemButton>
         );
       })}
+      {!isAdmin ? (
+        <ListItemButton
+          component={NavLink}
+          to={profilePath}
+          onClick={() => setMobileOpen(false)}
+          sx={{
+            mx: 1,
+            mt: 1,
+            borderRadius: 2,
+            '&.active': { bgcolor: 'primary.main', color: 'primary.contrastText', '& .MuiListItemIcon-root': { color: 'inherit' } }
+          }}
+        >
+          <ListItemIcon sx={{ minWidth: 36 }}>
+            <User size={18} />
+          </ListItemIcon>
+          <ListItemText primary="Mon profil" />
+        </ListItemButton>
+      ) : null}
     </List>
   );
 
@@ -164,6 +188,16 @@ export function DashboardLayout() {
               onMarkAllRead={handleMarkAllRead}
               onViewFactures={() => navigate('/dashboard/factures')}
             />
+            {!isAdmin ? (
+              <Button
+                startIcon={<User size={18} />}
+                variant={location.pathname === profilePath ? 'contained' : 'outlined'}
+                size="small"
+                onClick={() => navigate(profilePath)}
+              >
+                Mon profil
+              </Button>
+            ) : null}
             <Button startIcon={<PublicIcon />} variant="outlined" size="small" onClick={() => navigate('/')}>
               Site
             </Button>
@@ -178,7 +212,7 @@ export function DashboardLayout() {
             value={activeTab}
             variant="scrollable"
             scrollButtons="auto"
-            sx={{ px: 2 }}
+            sx={{ px: 2, ...(onProfilePage ? { '& .MuiTabs-indicator': { display: 'none' } } : {}) }}
             onChange={(_, value) => navigate(value)}
           >
             {visibleTabs.map((tab) => (

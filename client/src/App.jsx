@@ -10,7 +10,7 @@ import { Cart } from './pages/public/Cart';
 import { Checkout } from './pages/public/Checkout';
 import { Login } from './pages/Login';
 import { Dashboard } from './pages/Dashboard';
-import { Clients } from './pages/Clients';
+import { Clients, UserProfile } from './pages/Clients';
 import { Categories } from './pages/Categories';
 import { Articles } from './pages/Articles';
 import { Factures } from './pages/Factures';
@@ -69,7 +69,15 @@ const router = createBrowserRouter([
     ),
     children: [
       { index: true, element: <Dashboard /> },
-      { path: 'clients', element: <Clients /> },
+      { path: 'profil', element: <UserProfile /> },
+      {
+        path: 'clients',
+        element: (
+          <AdminRoute>
+            <Clients />
+          </AdminRoute>
+        )
+      },
       {
         path: 'categories',
         element: (
