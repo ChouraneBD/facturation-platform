@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import { useCart } from '../../contexts/CartContext';
 import { useToast } from '../../contexts/ToastContext';
 import { articlesService, contactService } from '../../services/jsonService';
+import { PublicSectionLink, scrollToPublicSection } from '../../components/PublicSectionLink';
 
 const cardGradients = [
   'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
@@ -15,6 +17,7 @@ const cardGradients = [
 ];
 
 export function Home() {
+  const location = useLocation();
   const [articles, setArticles] = useState([]);
   const [loading, setLoading] = useState(true);
   const { addToCart } = useCart();
@@ -33,6 +36,21 @@ export function Home() {
     };
     loadArticles();
   }, []);
+
+  useEffect(() => {
+    if (!location.hash) return undefined;
+
+    const sectionId = location.hash.replace('#', '');
+    if (!sectionId) return undefined;
+
+    if (sectionId === 'services' && loading) return undefined;
+
+    const timer = window.setTimeout(() => {
+      scrollToPublicSection(sectionId);
+    }, 50);
+
+    return () => window.clearTimeout(timer);
+  }, [location.hash, loading]);
 
   const handleAdd = (article) => {
     addToCart(article);
@@ -66,7 +84,7 @@ export function Home() {
           <div className="hero-eyebrow">CONSULTING & ENGINEERING</div>
           <h1 className="hero-title">Des Solutions Numériques Qui Transforment Votre Business</h1>
           <p className="hero-subtitle">Développement web, audit sécurité, migration cloud — nous accompagnons les entreprises marocaines dans leur transformation digitale.</p>
-          <a href="#services" className="hero-btn">Découvrir nos services</a>
+          <PublicSectionLink section="services" className="hero-btn">Découvrir nos services</PublicSectionLink>
         </div>
       </section>
 
