@@ -1,5 +1,5 @@
 const express = require('express');
-const { protect } = require('../middleware/authMiddleware');
+const { protect, authorizeRoles } = require('../middleware/authMiddleware');
 const {
     listClients,
     getClient,
@@ -16,6 +16,6 @@ router.get('/', listClients);
 router.get('/:id', getClient);
 router.post('/', createClient);
 router.put('/:id', updateClient);
-router.delete('/:id', deleteClient);
+router.delete('/:id', authorizeRoles('admin'), deleteClient);
 
 module.exports = router;
